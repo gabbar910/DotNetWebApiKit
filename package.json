@@ -1,0 +1,13 @@
+{
+  "name": "dotnet-husky-setup",
+  "version": "1.0.0",
+  "description": "Husky setup for .NET projects",
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0",
+    "@commitlint/cli": "^19.2.1",
+    "@commitlint/config-conventional": "^19.2.1"
+  }
+}
