@@ -1,0 +1,16 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+BRANCH_NAME=$(git symbolic-ref --short HEAD)
+if [ "$BRANCH_NAME" = "main" ]; then
+  echo "⛔️ Direct pushes to 'main' are not allowed. Use a pull request."
+  exit 1
+fi
+
+if [ "$BRANCH_NAME" = "dev" ]; then
+  echo "⛔️ Direct pushes to 'dev' are not allowed. Use a pull request."
+  exit 1
+fi
+
+echo "🚀 Running tests before push..."
+dotnet test --configuration Release || exit 1
