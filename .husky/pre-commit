@@ -1,4 +1,8 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-husky run --group pre-commit
+echo "🔍 Running dotnet format..."
+dotnet format DotNetWebAPIKit.sln --verify-no-changes || exit 1
+
+echo "✅ Running unit tests..."
+dotnet test --no-build --verbosity minimal || exit 1
