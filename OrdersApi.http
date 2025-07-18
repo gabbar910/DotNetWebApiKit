@@ -10,11 +10,15 @@ Content-Type: application/json
     "orderitems": [
         {        
             "part_id": 165,
-            "quantity": 1
+            "quantity": 1,
+            "price": 280.25,
+            "totalprice": 280.25
         },
         {        
             "part_id": 123,
-            "quantity": 3
+            "quantity": 3,
+            "price": 500,
+            "totalprice": 1500
         }
     ]
 }
@@ -29,11 +33,15 @@ Content-Type: application/json
     "orderitems": [
         {        
             "part_id": 76,
-            "quantity": 2
+            "quantity": 2,
+            "price": 1000.25,
+            "totalprice": 2000.50
         },
         {        
             "part_id": 81,
             "quantity": 1
+            "price": 540,
+            "totalprice": 540
         }
     ]
 }
@@ -54,7 +62,9 @@ Content-Type: application/json
     "orderitems": [
         {        
             "part_id": 165,
-            "quantity": 1
+            "quantity": 1,
+            "price": 540,
+            "totalprice": 540
         }
     ]
 }
@@ -69,7 +79,9 @@ Content-Type: application/json
     "orderitems": [
         {        
             "part_id": 99999,
-            "quantity": 1
+            "quantity": 1,
+            "price": 540,
+            "totalprice": 540
         }
     ]
 }
@@ -84,7 +96,9 @@ Content-Type: application/json
     "orderitems": [
         {        
             "part_id": 165,
-            "quantity": 1
+            "quantity": 1,
+            "price": 540,
+            "totalprice": 540
         }
     ]
 }
@@ -109,7 +123,9 @@ Content-Type: application/json
     "orderitems": [
         {        
             "part_id": 165,
-            "quantity": 0
+            "quantity": 0,
+            "price": 540,
+            "totalprice": 0
         }
     ]
 }
