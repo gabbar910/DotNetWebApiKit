@@ -1,0 +1,162 @@
+[
+  {
+    "customer_id": 1,
+    "name": "Ojas Chand",
+    "address": "223, Chaudhary Zila",
+    "pincode": "492982",
+    "state": "Telangana",
+    "city": "Pondicherry"
+  },
+  {
+    "customer_id": 2,
+    "name": "Vedika Kale",
+    "address": "48/671, Bhandari Zila",
+    "pincode": "169017",
+    "state": "Odisha",
+    "city": "Patna"
+  },
+  {
+    "customer_id": 3,
+    "name": "Raghav Grewal",
+    "address": "20/00, Subramanian Nagar",
+    "pincode": "397634",
+    "state": "Sikkim",
+    "city": "Pallavaram"
+  },
+  {
+    "customer_id": 4,
+    "name": "Nitya Rana",
+    "address": "93/281, Babu Street",
+    "pincode": "602127",
+    "state": "Himachal Pradesh",
+    "city": "Katihar"
+  },
+  {
+    "customer_id": 5,
+    "name": "Ryan Dar",
+    "address": "H.No. 79, Jaggi Ganj",
+    "pincode": "595980",
+    "state": "Goa",
+    "city": "Sasaram"
+  },
+  {
+    "customer_id": 6,
+    "name": "Riya Sathe",
+    "address": "H.No. 94\nBuch Zila",
+    "pincode": "295016",
+    "state": "Kerala",
+    "city": "Phusro"
+  },
+  {
+    "customer_id": 7,
+    "name": "Vidur Arora",
+    "address": "58/561\nDash Chowk",
+    "pincode": "450654",
+    "state": "Haryana",
+    "city": "Dehri"
+  },
+  {
+    "customer_id": 8,
+    "name": "Faiyaz Contractor",
+    "address": "81/84\nVerma Path",
+    "pincode": "077470",
+    "state": "Kerala",
+    "city": "Gandhidham"
+  },
+  {
+    "customer_id": 9,
+    "name": "Kismat Barman",
+    "address": "847\nWali Circle",
+    "pincode": "234488",
+    "state": "Rajasthan",
+    "city": "Siwan"
+  },
+  {
+    "customer_id": 10,
+    "name": "Himmat Iyengar",
+    "address": "15/192\nDara Marg",
+    "pincode": "941035",
+    "state": "Manipur",
+    "city": "Kalyan-Dombivli"
+  },
+  {
+    "customer_id": 11,
+    "name": "Zeeshan Sekhon",
+    "address": "H.No. 629\nMane Ganj",
+    "pincode": "692594",
+    "state": "Maharashtra",
+    "city": "Sirsa"
+  },
+  {
+    "customer_id": 12,
+    "name": "Aaina Bumb",
+    "address": "54/77\nVarkey Road",
+    "pincode": "650957",
+    "state": "Chhattisgarh",
+    "city": "Visakhapatnam"
+  },
+  {
+    "customer_id": 13,
+    "name": "Samiha Biswas",
+    "address": "H.No. 68\nBhavsar Path",
+    "pincode": "253827",
+    "state": "Punjab",
+    "city": "Amravati"
+  },
+  {
+    "customer_id": 14,
+    "name": "Manjari Tak",
+    "address": "80\nDevi Zila",
+    "pincode": "728429",
+    "state": "Arunachal Pradesh",
+    "city": "Nagaon"
+  },
+  {
+    "customer_id": 15,
+    "name": "Anika Choudhary",
+    "address": "H.No. 06\nGupta Nagar",
+    "pincode": "676082",
+    "state": "Sikkim",
+    "city": "Purnia"
+  },
+  {
+    "customer_id": 16,
+    "name": "Shlok Chakrabarti",
+    "address": "86\nLal Circle",
+    "pincode": "691165",
+    "state": "Maharashtra",
+    "city": "Pali"
+  },
+  {
+    "customer_id": 17,
+    "name": "Jayesh Mane",
+    "address": "608, Kapur",
+    "pincode": "723060",
+    "state": "Meghalaya",
+    "city": "Bellary"
+  },
+  {
+    "customer_id": 18,
+    "name": "Eshani Goswami",
+    "address": "H.No. 309\nDatta Path",
+    "pincode": "036653",
+    "state": "Odisha",
+    "city": "Ujjain"
+  },
+  {
+    "customer_id": 19,
+    "name": "Hazel Aggarwal",
+    "address": "H.No. 851, Rama Nagar",
+    "pincode": "834448",
+    "state": "Goa",
+    "city": "Thiruvananthapuram"
+  },
+  {
+    "customer_id": 20,
+    "name": "Emir Rau",
+    "address": "57/88, Hari Nagar",
+    "pincode": "054814",
+    "state": "Tamil Nadu",
+    "city": "Sikar"
+  }
+]
