@@ -7,7 +7,10 @@ on:
 
 jobs:
   auto-create-pr:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest    
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
     - name: Checkout code
@@ -26,7 +29,7 @@ jobs:
 
     - name: Generate PR Summary using OpenAI
       run: |
-        DIFF_CONTENT=$(cat changes.diff | head -c 6000 | jq -Rs .)
+        DIFF_CONTENT=$(head -c 6000 changes.diff | jq -Rs .)
         curl https://api.openai.com/v1/chat/completions \
           -s \
           -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
