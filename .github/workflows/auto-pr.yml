@@ -1,0 +1,58 @@
+name: Auto PR on Feature Push with AI Summary
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+
+jobs:
+  auto-create-pr:
+    runs-on: ubuntu-latest    
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Git
+      run: |
+        git fetch origin dev
+
+    - name: Generate git diff
+      run: |
+        git diff origin/dev > changes.diff
+
+    - name: Install curl and jq
+      run: sudo apt-get update && sudo apt-get install -y curl jq
+
+    - name: Generate PR Summary using OpenAI
+      run: |
+        DIFF_CONTENT=$(head -c 6000 changes.diff | jq -Rs .)
+        curl https://api.openai.com/v1/chat/completions \
+          -s \
+          -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "model": "gpt-4",
+            "messages": [
+              { "role": "system", "content": "You are an assistant that summarizes code changes for pull requests." },
+              { "role": "user", "content": '"$DIFF_CONTENT"' }
+            ]
+          }' | jq -r '.choices[0].message.content' > summary.md
+
+    - name: Install GitHub CLI
+      run: |
+        sudo apt install gh -y
+
+    - name: Authenticate GitHub CLI
+      run: echo "${{ secrets.PR_CREATION_TOKEN}}" | gh auth login --with-token
+
+    - name: Create Pull Request
+      run: |
+        gh pr create \
+          --base dev \
+          --head ${{ github.ref_name }} \
+          --title "Auto PR: ${{ github.ref_name }}" \
+          --body-file summary.md || echo "PR may already exist"

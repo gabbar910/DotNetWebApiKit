@@ -1,0 +1,115 @@
+
+### Create a new order
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+    "order_id": 1,
+    "customer_id": 8,
+    "order_date": "2025-05-19",
+    "orderitems": [
+        {        
+            "part_id": 165,
+            "quantity": 1
+        },
+        {        
+            "part_id": 123,
+            "quantity": 3
+        }
+    ]
+}
+
+### Create another order with different customer
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+    "customer_id": 7,
+    "order_date": "2025-07-11",
+    "orderitems": [
+        {        
+            "part_id": 76,
+            "quantity": 2
+        },
+        {        
+            "part_id": 81,
+            "quantity": 1
+        }
+    ]
+}
+
+### Get all orders
+GET {{host}}/api/orders
+
+### Get specific order by ID
+GET {{host}}/api/orders/1
+
+### Test validation - Invalid customer ID
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+    "customer_id": 999,
+    "order_date": "2025-07-11",
+    "orderitems": [
+        {        
+            "part_id": 165,
+            "quantity": 1
+        }
+    ]
+}
+
+### Test validation - Invalid part ID
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+    "customer_id": 8,
+    "order_date": "2025-07-11",
+    "orderitems": [
+        {        
+            "part_id": 99999,
+            "quantity": 1
+        }
+    ]
+}
+
+### Test validation - Invalid date format
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+    "customer_id": 8,
+    "order_date": "2025/07/11",
+    "orderitems": [
+        {        
+            "part_id": 165,
+            "quantity": 1
+        }
+    ]
+}
+
+### Test validation - Missing order items
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+    "customer_id": 8,
+    "order_date": "2025-07-11",
+    "orderitems": []
+}
+
+### Test validation - Invalid quantity
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+    "customer_id": 8,
+    "order_date": "2025-07-11",
+    "orderitems": [
+        {        
+            "part_id": 165,
+            "quantity": 0
+        }
+    ]
+}
