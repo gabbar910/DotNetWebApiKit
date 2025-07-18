@@ -1,0 +1,38 @@
+### Get all spare parts
+GET {{host}}/api/spareparts
+
+### Get spare part by ID
+GET {{host}}/api/spareparts/1
+
+### Get spare parts by category
+GET {{host}}/api/spareparts/category/Brakes
+
+### Get spare parts by manufacturer
+GET {{host}}/api/spareparts/manufacturer/Hella
+
+### Get spare parts by vehicle make
+GET {{host}}/api/spareparts/make/BMW
+
+### Get low stock parts (default threshold: 10)
+GET {{host}}/api/spareparts/stock/low
+
+### Get low stock parts with custom threshold
+GET {{host}}/api/spareparts/stock/low?threshold=5
+
+### Get all categories
+GET {{host}}/api/spareparts/categories
+
+### Get all manufacturers
+GET {{host}}/api/spareparts/manufacturers
+
+### Get all vehicle makes
+GET {{host}}/api/spareparts/makes
+
+### Search with multiple filters
+GET {{host}}/api/spareparts?category=Engine&manufacturer=Denso
+
+### Search by category and make
+GET {{host}}/api/spareparts?category=Brakes&make=BMW
+
+### Search by manufacturer and make
+GET {{host}}/api/spareparts?manufacturer=Bosch&make=Honda

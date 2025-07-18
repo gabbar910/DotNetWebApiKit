@@ -1,6 +1,1 @@
-@DotNetWebAPIKit_HostAddress = http://localhost:5189
-
-GET {{DotNetWebAPIKit_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
+### @DotNetWebAPIKit_HostAddress = http://localhost:5189

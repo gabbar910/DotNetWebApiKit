@@ -1,0 +1,72 @@
+### Get all customers
+GET {{host}}/api/customers
+Accept: application/json
+
+### Get customer by ID
+GET {{host}}/api/customers/1
+Accept: application/json
+
+### Create a new customer
+POST {{host}}/api/customers
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "address": "123 Main Street",
+  "pincode": "123456",
+  "state": "Maharashtra",
+  "city": "Mumbai"
+}
+
+### Update an existing customer
+PUT {{host}}/api/customers/1
+Content-Type: application/json
+
+{
+  "name": "John Doe Updated",
+  "address": "456 Updated Street",
+  "pincode": "654321",
+  "state": "Karnataka",
+  "city": "Bangalore"
+}
+
+### Delete a customer
+DELETE {{host}}/api/customers/1
+
+### Get customers by state
+GET {{host}}/api/customers/state/Maharashtra
+Accept: application/json
+
+### Get customers by city
+GET {{host}}/api/customers/city/Mumbai
+Accept: application/json
+
+### Get all states
+GET {{host}}/api/customers/states
+Accept: application/json
+
+### Get all cities
+GET {{host}}/api/customers/cities
+Accept: application/json
+
+### Test with invalid data (missing name)
+POST {{host}}/api/customers
+Content-Type: application/json
+
+{
+  "address": "123 Test Street",
+  "pincode": "123456",
+  "state": "Test State",
+  "city": "Test City"
+}
+
+### Test with invalid data (missing address)
+POST {{host}}/api/customers
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "pincode": "123456",
+  "state": "Test State",
+  "city": "Test City"
+}
