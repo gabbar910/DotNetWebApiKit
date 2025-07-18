@@ -304,5 +304,11 @@
     "customer_id": 3,
     "order_date": "2025-07-11",
     "orderitems": []
+  },
+  {
+    "order_id": 52,
+    "customer_id": 18,
+    "order_date": "2025-05-12",
+    "orderitems": []
   }
 ]
