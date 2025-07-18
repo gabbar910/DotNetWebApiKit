@@ -1,0 +1,13 @@
+# .coderabbit/config.yml
+review:
+  enable: true
+  summarize: true
+  comment_mode: suggestions
+  memory: true
+  max_comments: 10
+
+test_generation:
+  enable: true
+
+doc_generation:
+  enable: true
