@@ -39,7 +39,7 @@ Content-Type: application/json
         },
         {        
             "part_id": 81,
-            "quantity": 1
+            "quantity": 1,
             "price": 540,
             "totalprice": 540
         }

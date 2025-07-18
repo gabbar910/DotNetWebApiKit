@@ -20,12 +20,12 @@ namespace DotNetApiStarterKit.Models
 
         [JsonPropertyName("price")]
         [Required(ErrorMessage = "Price is required")]
-        [Range(1, double.MaxValue, ErrorMessage = "Price must be a positive number")]
+        [Range(typeof(decimal), "1", "79228162514264337593543950335", ErrorMessage = "TotalPrice must be a positive number")]
         public decimal Price { get; set; }
 
         [JsonPropertyName("totalprice")]
         [Required(ErrorMessage = "TotalPrice is required")]
-        [Range(1, double.MaxValue, ErrorMessage = "TotalPrice must be a positive number")]
+        [Range(typeof(decimal), "1", "79228162514264337593543950335", ErrorMessage = "TotalPrice must be a positive number")]
         public decimal TotalPrice { get; set; }
     }
 }
