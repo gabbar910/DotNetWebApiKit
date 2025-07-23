@@ -80,9 +80,20 @@ namespace DotNetApiStarterKit.Controllers
                     return this.BadRequest("Email is required");
                 }
 
+                if (!System.Text.RegularExpressions.Regex.IsMatch(registerRequest.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                {
+                    return this.BadRequest("Invalid email format");
+                }
+
                 if (registerRequest.Password.Length < 6)
                 {
                     return this.BadRequest("Password must be at least 6 characters long");
+                }
+
+                // Add password complexity requirements
+                if (!System.Text.RegularExpressions.Regex.IsMatch(registerRequest.Password, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$"))
+                {
+                    return this.BadRequest("Password must contain at least one uppercase letter, one lowercase letter, and one number");
                 }
 
                 // Check if user already exists
