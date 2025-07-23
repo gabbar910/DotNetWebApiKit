@@ -2,6 +2,7 @@ namespace DotNetApiStarterKit.Controllers
 {
     using DotNetApiStarterKit.Models;
     using DotNetApiStarterKit.Services;
+    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 
     [ApiController]
@@ -68,6 +69,7 @@ namespace DotNetApiStarterKit.Controllers
         /// <param name="customer">Customer data</param>
         /// <returns>Created customer with assigned ID</returns>
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<Customer>> CreateCustomer([FromBody] Customer customer)
         {
             try
@@ -102,6 +104,7 @@ namespace DotNetApiStarterKit.Controllers
         /// <param name="customer">Updated customer data</param>
         /// <returns>Updated customer</returns>
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<ActionResult<Customer>> UpdateCustomer(int id, [FromBody] Customer customer)
         {
             try
@@ -138,6 +141,7 @@ namespace DotNetApiStarterKit.Controllers
         /// <param name="id">Customer ID</param>
         /// <returns>Success status</returns>
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<ActionResult> DeleteCustomer(int id)
         {
             try

@@ -1,0 +1,72 @@
+### Authentication API Tests
+
+@baseUrl = https://localhost:7000
+@httpUrl = http://localhost:5000
+
+### Register a new user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123",
+  "email": "admin@example.com"
+}
+
+### Register another test user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "testpass123",
+  "email": "testuser@example.com"
+}
+
+### Login with admin user
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### Login with test user
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "testpass123"
+}
+
+### Login with invalid credentials
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "wrongpassword"
+}
+
+### Validate token (replace with actual token from login response)
+POST {{baseUrl}}/api/auth/validate
+Content-Type: application/json
+
+{
+  "token": "your_jwt_token_here"
+}
+
+### Get current user info (requires authentication - add Bearer token)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer your_jwt_token_here
+
+### Test with HTTP (non-HTTPS) endpoint
+POST {{httpUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
