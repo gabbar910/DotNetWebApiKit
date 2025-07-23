@@ -2,7 +2,6 @@
   {
     "user_id": 1,
     "username": "admin",
-    "password_hash": "$2a$11$N9qo8uLOickgx2ZMRZoMye.IjdQXvbVxrQ5/Zo9137psmc0jQX/TK",
     "email": "admin@example.com",
     "created_at": "2025-01-01T00:00:00Z",
     "last_login_at": "0001-01-01T00:00:00",
@@ -11,10 +10,17 @@
   {
     "user_id": 2,
     "username": "testuser",
-    "password_hash": "$2a$11$BOScyoen2HaWvKncYLlEcufncqvF54yPmq4RMNUUeGYOYhsILfPU6",
     "email": "test@example.com",
     "created_at": "2025-07-23T05:34:53.397509Z",
     "last_login_at": "2025-07-23T05:42:41.1096783Z",
+    "is_active": true
+  },
+  {
+    "user_id": 3,
+    "username": "pujago",
+    "email": "pujago@gmail.com",
+    "created_at": "2025-07-23T09:45:24.4708811Z",
+    "last_login_at": "0001-01-01T00:00:00",
     "is_active": true
   }
 ]

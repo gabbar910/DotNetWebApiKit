@@ -1,11 +1,11 @@
-using System.ComponentModel.DataAnnotations;
-using DotNetApiStarterKit.Models;
-using DotNetApiStarterKit.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace DotNetApiStarterKit.Controllers
 {
+    using System.ComponentModel.DataAnnotations;
+    using DotNetApiStarterKit.Models;
+    using DotNetApiStarterKit.Services;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
+
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
