@@ -17,6 +17,8 @@ namespace DotNetApiStarterKit.Services
 
         Task<IEnumerable<SparePart>> GetLowStockPartsAsync(int threshold = 10);
 
+        Task<SparePart> CreateSparePartAsync(SparePart sparePart);
+
         Task<IEnumerable<SparePart>> SearchSparePartsAsync(string? category = null, string? manufacturer = null, string? make = null);
     }
 
@@ -91,6 +93,21 @@ namespace DotNetApiStarterKit.Services
             return query;
         }
 
+        public async Task<SparePart> CreateSparePartAsync(SparePart sparePart)
+        {
+            var spareparts = await this.LoadSparePartsAsync();
+
+            // Generate new ID
+            var maxId = spareparts.Any() ? spareparts.Max(p => p.PartId) : 0;
+            sparePart.PartId = maxId + 1;
+
+            spareparts.Add(sparePart);
+            await this.SavePartsAsync(spareparts);
+
+            this.logger.LogInformation("Created new spare part with ID {PartId}", sparePart.PartId);
+            return sparePart;
+        }
+
         private async Task<List<SparePart>> LoadSparePartsAsync()
         {
             if (this.cachedParts != null)
@@ -122,6 +139,28 @@ namespace DotNetApiStarterKit.Services
             {
                 this.logger.LogError(ex, "Error loading spare parts data from file: {FilePath}", this.dataFilePath);
                 return new List<SparePart>();
+            }
+        }
+
+        private async Task SavePartsAsync(List<SparePart> parts)
+        {
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+                    WriteIndented = true,
+                };
+
+                var jsonContent = JsonSerializer.Serialize(parts, options);
+                await File.WriteAllTextAsync(this.dataFilePath, jsonContent);
+                this.cachedParts = parts;
+                this.logger.LogInformation("Saved {Count} parts to data file", parts.Count);
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error saving parts data to file: {FilePath}", this.dataFilePath);
+                throw;
             }
         }
     }

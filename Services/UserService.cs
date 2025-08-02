@@ -113,33 +113,36 @@ namespace DotNetApiStarterKit.Services
 
         public async Task<bool> ValidateTokenAsync(string token)
         {
-            try
+            return await Task.Run(() =>
             {
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var key = Encoding.ASCII.GetBytes(this.configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured"));
-
-                tokenHandler.ValidateToken(
-                token,
-                new TokenValidationParameters
+                try
                 {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = true,
-                    ValidIssuer = this.configuration["Jwt:Issuer"],
-                    ValidateAudience = true,
-                    ValidAudience = this.configuration["Jwt:Audience"],
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero,
-                },
-                out SecurityToken validatedToken);
+                    var tokenHandler = new JwtSecurityTokenHandler();
+                    var key = Encoding.ASCII.GetBytes(this.configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured"));
 
-                return true;
-            }
-            catch (Exception ex)
-            {
-                this.logger.LogWarning(ex, "Token validation failed");
-                return false;
-            }
+                    tokenHandler.ValidateToken(
+                    token,
+                    new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(key),
+                        ValidateIssuer = true,
+                        ValidIssuer = this.configuration["Jwt:Issuer"],
+                        ValidateAudience = true,
+                        ValidAudience = this.configuration["Jwt:Audience"],
+                        ValidateLifetime = true,
+                        ClockSkew = TimeSpan.Zero,
+                    },
+                    out SecurityToken validatedToken);
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogWarning(ex, "Token validation failed");
+                    return false;
+                }
+            });
         }
 
         private string GenerateJwtToken(UserCredential user)
