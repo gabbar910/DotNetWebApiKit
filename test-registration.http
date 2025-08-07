@@ -1,0 +1,63 @@
+### Test Registration with File Locking Fix
+### Make sure to restart the application first to use the updated UserService
+
+@baseUrl = http://localhost:5189
+
+### Test 1: Register a new user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser1",
+  "password": "TestPass123",
+  "email": "testuser1@example.com"
+}
+
+### Test 2: Register another user (concurrent test)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser2",
+  "password": "TestPass123",
+  "email": "testuser2@example.com"
+}
+
+### Test 3: Try to register duplicate user (should fail)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser1",
+  "password": "TestPass123",
+  "email": "testuser1@example.com"
+}
+
+### Test 4: Login with newly registered user
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser1",
+  "password": "TestPass123"
+}
+
+### Test 5: Register user with weak password (should fail)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser3",
+  "password": "weak",
+  "email": "testuser3@example.com"
+}
+
+### Test 6: Register user with invalid email (should fail)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser4",
+  "password": "TestPass123",
+  "email": "invalid-email"
+}

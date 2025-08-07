@@ -1,6 +1,8 @@
 using System.Text;
+using DotNetApiStarterKit.Data;
 using DotNetApiStarterKit.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -9,11 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 // Register custom Services
 builder.Services.AddScoped<ISparePartsService, SparePartsService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IDataMigrationService, DataMigrationService>();
 
 // Configure JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
@@ -94,6 +100,29 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Initialize database and run migrations
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var migrationService = scope.ServiceProvider.GetRequiredService<IDataMigrationService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        // Ensure database is created
+        await context.Database.EnsureCreatedAsync();
+        logger.LogInformation("Database initialized successfully");
+
+        // Run data migration from JSON to SQLite
+        await migrationService.MigrateUsersFromJsonAsync();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while initializing the database");
+        throw;
+    }
+}
 
 app.UseCors("AllowReactApp");
 

@@ -3,9 +3,10 @@ namespace DotNetApiStarterKit.Services
     using System.IdentityModel.Tokens.Jwt;
     using System.Security.Claims;
     using System.Text;
-    using System.Text.Json;
     using BCrypt.Net;
+    using DotNetApiStarterKit.Data;
     using DotNetApiStarterKit.Models;
+    using Microsoft.EntityFrameworkCore;
     using Microsoft.IdentityModel.Tokens;
 
     public interface IUserService
@@ -21,13 +22,13 @@ namespace DotNetApiStarterKit.Services
 
     public class UserService : IUserService
     {
-        private readonly string dataFilePath;
+        private readonly AppDbContext context;
         private readonly ILogger<UserService> logger;
         private readonly IConfiguration configuration;
 
-        public UserService(IWebHostEnvironment environment, ILogger<UserService> logger, IConfiguration configuration)
+        public UserService(AppDbContext context, ILogger<UserService> logger, IConfiguration configuration)
         {
-            this.dataFilePath = Path.Combine(environment.ContentRootPath, "data", "usercreds.json");
+            this.context = context;
             this.logger = logger;
             this.configuration = configuration;
         }
@@ -77,38 +78,58 @@ namespace DotNetApiStarterKit.Services
 
         public async Task<UserCredential?> GetUserByUsernameAsync(string username)
         {
-            var users = await this.LoadUsersAsync();
-            return users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+            try
+            {
+                return await this.context.Users
+                    .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error retrieving user by username: {Username}", username);
+                return null;
+            }
         }
 
         public async Task<UserCredential> CreateUserAsync(string username, string password, string email)
         {
-            var users = await this.LoadUsersAsync();
-
-            // Check if user already exists
-            if (users.Any(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
+            try
             {
-                throw new InvalidOperationException($"User with username '{username}' already exists");
+                // Check if user already exists
+                var existingUser = await this.GetUserByUsernameAsync(username);
+                if (existingUser != null)
+                {
+                    throw new InvalidOperationException($"User with username '{username}' already exists");
+                }
+
+                // Check if email already exists
+                var existingEmail = await this.context.Users
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+                if (existingEmail != null)
+                {
+                    throw new InvalidOperationException($"User with email '{email}' already exists");
+                }
+
+                var newUser = new UserCredential
+                {
+                    Username = username,
+                    PasswordHash = BCrypt.HashPassword(password),
+                    Email = email,
+                    CreatedAt = DateTime.UtcNow,
+                    LastLoginAt = DateTime.MinValue,
+                    IsActive = true,
+                };
+
+                this.context.Users.Add(newUser);
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Created new user with username: {Username}", username);
+                return newUser;
             }
-
-            // Generate new ID
-            var maxId = users.Any() ? users.Max(u => u.UserId) : 0;
-            var newUser = new UserCredential
+            catch (Exception ex)
             {
-                UserId = maxId + 1,
-                Username = username,
-                PasswordHash = BCrypt.HashPassword(password),
-                Email = email,
-                CreatedAt = DateTime.UtcNow,
-                LastLoginAt = DateTime.MinValue,
-                IsActive = true,
-            };
-
-            users.Add(newUser);
-            await this.SaveUsersAsync(users);
-
-            this.logger.LogInformation("Created new user with username: {Username}", username);
-            return newUser;
+                this.logger.LogError(ex, "Error creating user: {Username}", username);
+                throw;
+            }
         }
 
         public async Task<bool> ValidateTokenAsync(string token)
@@ -170,76 +191,12 @@ namespace DotNetApiStarterKit.Services
             return tokenHandler.WriteToken(token);
         }
 
-        private async Task<List<UserCredential>> LoadUsersAsync()
-        {
-            try
-            {
-                if (!File.Exists(this.dataFilePath))
-                {
-                    this.logger.LogInformation("User credentials file not found, creating empty list");
-                    return new List<UserCredential>();
-                }
-
-                var jsonContent = await File.ReadAllTextAsync(this.dataFilePath);
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                };
-
-                var users = JsonSerializer.Deserialize<List<UserCredential>>(jsonContent, options) ?? new List<UserCredential>();
-                this.logger.LogInformation("Loaded {Count} users from credentials file", users.Count);
-
-                return users;
-            }
-            catch (Exception ex)
-            {
-                this.logger.LogError(ex, "Error loading user credentials from file: {FilePath}", this.dataFilePath);
-                return new List<UserCredential>();
-            }
-        }
-
-        private async Task SaveUsersAsync(List<UserCredential> users)
-        {
-            try
-            {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                    WriteIndented = true,
-                };
-
-                var jsonContent = JsonSerializer.Serialize(users, options);
-
-                // Ensure directory exists
-                var directory = Path.GetDirectoryName(this.dataFilePath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                await File.WriteAllTextAsync(this.dataFilePath, jsonContent);
-                this.logger.LogInformation("Saved {Count} users to credentials file", users.Count);
-            }
-            catch (Exception ex)
-            {
-                this.logger.LogError(ex, "Error saving user credentials to file: {FilePath}", this.dataFilePath);
-                throw;
-            }
-        }
-
         private async Task UpdateUserLastLoginAsync(UserCredential user)
         {
             try
             {
-                var users = await this.LoadUsersAsync();
-                var existingUser = users.FirstOrDefault(u => u.UserId == user.UserId);
-
-                if (existingUser != null)
-                {
-                    existingUser.LastLoginAt = user.LastLoginAt;
-                    await this.SaveUsersAsync(users);
-                }
+                this.context.Users.Update(user);
+                await this.context.SaveChangesAsync();
             }
             catch (Exception ex)
             {

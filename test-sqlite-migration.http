@@ -1,0 +1,74 @@
+### Test SQLite Migration - Authentication Tests
+### The application should now be using SQLite instead of JSON file
+
+@baseUrl = http://localhost:5189
+
+### Test 1: Login with migrated admin user
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### Test 2: Login with migrated testuser
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "testpass123"
+}
+
+### Test 3: Login with migrated pujago user
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "pujago",
+  "password": "pujago123"
+}
+
+### Test 4: Register a new user (should work with SQLite)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "newuser",
+  "password": "NewPass123",
+  "email": "newuser@example.com"
+}
+
+### Test 5: Try to register duplicate username (should fail)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "TestPass123",
+  "email": "admin2@example.com"
+}
+
+### Test 6: Try to register duplicate email (should fail)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "admin2",
+  "password": "TestPass123",
+  "email": "admin@example.com"
+}
+
+### Test 7: Login with newly registered user
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "newuser",
+  "password": "NewPass123"
+}
+
+### Test 8: Get current user info (replace token from login response)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
