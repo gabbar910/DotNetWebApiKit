@@ -8,6 +8,8 @@ namespace DotNetApiStarterKit.Services
     public interface IDataMigrationService
     {
         Task MigrateUsersFromJsonAsync();
+
+        Task MigrateCustomersFromJsonAsync();
     }
 
     public class DataMigrationService : IDataMigrationService
@@ -98,7 +100,82 @@ namespace DotNetApiStarterKit.Services
             }
         }
 
-        // Helper class for JSON deserialization
+        public async Task MigrateCustomersFromJsonAsync()
+        {
+            try
+            {
+                var jsonFilePath = Path.Combine(this.environment.ContentRootPath, "data", "customer.json");
+
+                if (!File.Exists(jsonFilePath))
+                {
+                    this.logger.LogInformation("No JSON customer file found at {FilePath}. Skipping migration.", jsonFilePath);
+                    return;
+                }
+
+                // Check if customers already exist in database
+                var existingCustomersCount = await this.context.Customers.CountAsync();
+                if (existingCustomersCount > 0)
+                {
+                    this.logger.LogInformation("Database already contains {Count} customers. Skipping migration.", existingCustomersCount);
+                    return;
+                }
+
+                this.logger.LogInformation("Starting migration of customers from JSON file to SQLite database...");
+
+                var jsonContent = await File.ReadAllTextAsync(jsonFilePath);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+                };
+
+                var jsonCustomers = JsonSerializer.Deserialize<List<JsonCustomer>>(jsonContent, options);
+
+                if (jsonCustomers == null || !jsonCustomers.Any())
+                {
+                    this.logger.LogWarning("No customers found in JSON file or file is empty.");
+                    return;
+                }
+
+                var migratedCustomers = new List<Customer>();
+
+                foreach (var jsonCustomer in jsonCustomers)
+                {
+                    var customer = new Customer
+                    {
+                        CustomerId = jsonCustomer.CustomerId,
+                        Name = jsonCustomer.Name,
+                        Address = jsonCustomer.Address,
+                        Pincode = jsonCustomer.Pincode,
+                        State = jsonCustomer.State,
+                        City = jsonCustomer.City,
+                    };
+
+                    migratedCustomers.Add(customer);
+                }
+
+                this.context.Customers.AddRange(migratedCustomers);
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Successfully migrated {Count} customers from JSON to SQLite database.", migratedCustomers.Count);
+
+                // Create backup of JSON file
+                var backupPath = jsonFilePath + ".backup";
+                File.Copy(jsonFilePath, backupPath, true);
+                this.logger.LogInformation("Created backup of JSON file at {BackupPath}", backupPath);
+
+                // Delete original JSON file
+                File.Delete(jsonFilePath);
+                this.logger.LogInformation("Deleted original JSON file at {FilePath}", jsonFilePath);
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error during customer data migration from JSON to SQLite");
+                throw;
+            }
+        }
+
+        // Helper classes for JSON deserialization
         private class JsonUserCredential
         {
             public int UserId { get; set; }
@@ -114,6 +191,21 @@ namespace DotNetApiStarterKit.Services
             public DateTime LastLoginAt { get; set; }
 
             public bool IsActive { get; set; } = true;
+        }
+
+        private class JsonCustomer
+        {
+            public int CustomerId { get; set; }
+
+            public string Name { get; set; } = string.Empty;
+
+            public string Address { get; set; } = string.Empty;
+
+            public string Pincode { get; set; } = string.Empty;
+
+            public string State { get; set; } = string.Empty;
+
+            public string City { get; set; } = string.Empty;
         }
     }
 }
