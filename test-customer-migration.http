@@ -1,0 +1,96 @@
+### Test Customer Migration - Customer API Tests
+### The application should now be using SQLite for customers instead of JSON file
+
+@baseUrl = http://localhost:5189
+
+### Test 1: Get all customers (should return 21 migrated customers)
+GET {{baseUrl}}/api/customers
+Content-Type: application/json
+
+### Test 2: Get specific customer by ID (should return Ojas Chand)
+GET {{baseUrl}}/api/customers/1
+Content-Type: application/json
+
+### Test 3: Get another customer by ID (should return Vedika Kale)
+GET {{baseUrl}}/api/customers/2
+Content-Type: application/json
+
+### Test 4: Create a new customer (should work with SQLite)
+POST {{baseUrl}}/api/customers
+Content-Type: application/json
+
+{
+  "name": "New Customer Test",
+  "address": "123 Test Street, Test Area",
+  "pincode": "123456",
+  "state": "Test State",
+  "city": "Test City"
+}
+
+### Test 5: Update an existing customer
+PUT {{baseUrl}}/api/customers/1
+Content-Type: application/json
+
+{
+  "name": "Ojas Chand Updated",
+  "address": "Updated Address, New Area",
+  "pincode": "999999",
+  "state": "Updated State",
+  "city": "Updated City"
+}
+
+### Test 6: Get the updated customer to verify changes
+GET {{baseUrl}}/api/customers/1
+Content-Type: application/json
+
+### Test 7: Create another customer to test auto-increment ID
+POST {{baseUrl}}/api/customers
+Content-Type: application/json
+
+{
+  "name": "Another Test Customer",
+  "address": "456 Another Street",
+  "pincode": "654321",
+  "state": "Another State",
+  "city": "Another City"
+}
+
+### Test 8: Get all customers again (should now have 23 customers)
+GET {{baseUrl}}/api/customers
+Content-Type: application/json
+
+### Test 9: Delete a customer
+DELETE {{baseUrl}}/api/customers/21
+Content-Type: application/json
+
+### Test 10: Try to get the deleted customer (should return 404)
+GET {{baseUrl}}/api/customers/21
+Content-Type: application/json
+
+### Test 11: Get all customers after deletion (should have 22 customers)
+GET {{baseUrl}}/api/customers
+Content-Type: application/json
+
+### Test 12: Test validation - try to create customer with missing required fields
+POST {{baseUrl}}/api/customers
+Content-Type: application/json
+
+{
+  "name": "",
+  "address": "Test Address",
+  "pincode": "123456",
+  "state": "Test State",
+  "city": "Test City"
+}
+
+### Test 13: Test validation - try to create customer with missing address
+POST {{baseUrl}}/api/customers
+Content-Type: application/json
+
+{
+  "name": "Test Customer",
+  "address": "",
+  "pincode": "123456",
+  "state": "Test State",
+  "city": "Test City"
+}

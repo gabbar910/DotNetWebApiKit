@@ -110,12 +110,13 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        // Ensure database is created
-        await context.Database.EnsureCreatedAsync();
-        logger.LogInformation("Database initialized successfully");
+        // Apply pending migrations
+        await context.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully");
 
         // Run data migration from JSON to SQLite
         await migrationService.MigrateUsersFromJsonAsync();
+        await migrationService.MigrateCustomersFromJsonAsync();
     }
     catch (Exception ex)
     {

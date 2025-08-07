@@ -1,7 +1,8 @@
 namespace DotNetApiStarterKit.Services
 {
-    using System.Text.Json;
+    using DotNetApiStarterKit.Data;
     using DotNetApiStarterKit.Models;
+    using Microsoft.EntityFrameworkCore;
 
     public interface ICustomerService
     {
@@ -18,130 +19,184 @@ namespace DotNetApiStarterKit.Services
 
     public class CustomerService : ICustomerService
     {
-        private readonly string dataFilePath;
+        private readonly AppDbContext context;
         private readonly ILogger<CustomerService> logger;
-        private List<Customer>? cachedCustomers;
 
-        public CustomerService(IWebHostEnvironment environment, ILogger<CustomerService> logger)
+        public CustomerService(AppDbContext context, ILogger<CustomerService> logger)
         {
-            this.dataFilePath = Path.Combine(environment.ContentRootPath, "data", "customer.json");
+            this.context = context;
             this.logger = logger;
         }
 
         public async Task<IEnumerable<Customer>> GetAllCustomersAsync()
         {
-            var customers = await this.LoadCustomersAsync();
-            return customers;
-        }
-
-        public async Task<Customer?> GetCustomerByIdAsync(int id)
-        {
-            var customers = await this.LoadCustomersAsync();
-            return customers.FirstOrDefault(c => c.CustomerId == id);
-        }
-
-        public async Task<Customer> CreateCustomerAsync(Customer customer)
-        {
-            var customers = await this.LoadCustomersAsync();
-
-            // Generate new ID
-            var maxId = customers.Any() ? customers.Max(c => c.CustomerId) : 0;
-            customer.CustomerId = maxId + 1;
-
-            customers.Add(customer);
-            await this.SaveCustomersAsync(customers);
-
-            this.logger.LogInformation("Created new customer with ID {CustomerId}", customer.CustomerId);
-            return customer;
-        }
-
-        public async Task<Customer?> UpdateCustomerAsync(int id, Customer customer)
-        {
-            var customers = await this.LoadCustomersAsync();
-            var existingCustomer = customers.FirstOrDefault(c => c.CustomerId == id);
-
-            if (existingCustomer == null)
-            {
-                return null;
-            }
-
-            // Update properties
-            existingCustomer.Name = customer.Name;
-            existingCustomer.Address = customer.Address;
-            existingCustomer.Pincode = customer.Pincode;
-            existingCustomer.State = customer.State;
-            existingCustomer.City = customer.City;
-
-            await this.SaveCustomersAsync(customers);
-
-            this.logger.LogInformation("Updated customer with ID {CustomerId}", id);
-            return existingCustomer;
-        }
-
-        public async Task<bool> DeleteCustomerAsync(int id)
-        {
-            var customers = await this.LoadCustomersAsync();
-            var customerToDelete = customers.FirstOrDefault(c => c.CustomerId == id);
-
-            if (customerToDelete == null)
-            {
-                return false;
-            }
-
-            customers.Remove(customerToDelete);
-            await this.SaveCustomersAsync(customers);
-
-            this.logger.LogInformation("Deleted customer with ID {CustomerId}", id);
-            return true;
-        }
-
-        private async Task<List<Customer>> LoadCustomersAsync()
-        {
             try
             {
-                if (!File.Exists(this.dataFilePath))
-                {
-                    this.logger.LogError("Customer data file not found at: {FilePath}", this.dataFilePath);
-                    return new List<Customer>();
-                }
+                var customers = await this.context.Customers
+                    .OrderBy(c => c.CustomerId)
+                    .ToListAsync();
 
-                var jsonContent = await File.ReadAllTextAsync(this.dataFilePath);
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                };
-
-                var customers = JsonSerializer.Deserialize<List<Customer>>(jsonContent, options) ?? new List<Customer>();
-                this.logger.LogInformation("Loaded {Count} customers from data file", customers.Count);
-
+                this.logger.LogInformation("Retrieved {Count} customers from database", customers.Count);
                 return customers;
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error loading customer data from file: {FilePath}", this.dataFilePath);
-                return new List<Customer>();
+                this.logger.LogError(ex, "Error retrieving all customers from database");
+                throw;
             }
         }
 
-        private async Task SaveCustomersAsync(List<Customer> customers)
+        public async Task<Customer?> GetCustomerByIdAsync(int id)
         {
             try
             {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                    WriteIndented = true,
-                };
+                var customer = await this.context.Customers
+                    .FirstOrDefaultAsync(c => c.CustomerId == id);
 
-                var jsonContent = JsonSerializer.Serialize(customers, options);
-                await File.WriteAllTextAsync(this.dataFilePath, jsonContent);
-                this.cachedCustomers = customers;
-                this.logger.LogInformation("Saved {Count} customers to data file", customers.Count);
+                if (customer != null)
+                {
+                    this.logger.LogInformation("Retrieved customer with ID {CustomerId}", id);
+                }
+                else
+                {
+                    this.logger.LogWarning("Customer with ID {CustomerId} not found", id);
+                }
+
+                return customer;
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error saving customer data to file: {FilePath}", this.dataFilePath);
+                this.logger.LogError(ex, "Error retrieving customer with ID {CustomerId}", id);
+                throw;
+            }
+        }
+
+        public async Task<Customer> CreateCustomerAsync(Customer customer)
+        {
+            try
+            {
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(customer.Name))
+                {
+                    throw new ArgumentException("Customer name is required");
+                }
+
+                if (string.IsNullOrWhiteSpace(customer.Address))
+                {
+                    throw new ArgumentException("Customer address is required");
+                }
+
+                if (string.IsNullOrWhiteSpace(customer.Pincode))
+                {
+                    throw new ArgumentException("Customer pincode is required");
+                }
+
+                if (string.IsNullOrWhiteSpace(customer.State))
+                {
+                    throw new ArgumentException("Customer state is required");
+                }
+
+                if (string.IsNullOrWhiteSpace(customer.City))
+                {
+                    throw new ArgumentException("Customer city is required");
+                }
+
+                // Reset ID to let database generate it
+                customer.CustomerId = 0;
+
+                this.context.Customers.Add(customer);
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Created new customer with ID {CustomerId}", customer.CustomerId);
+                return customer;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error creating new customer");
+                throw;
+            }
+        }
+
+        public async Task<Customer?> UpdateCustomerAsync(int id, Customer customer)
+        {
+            try
+            {
+                var existingCustomer = await this.context.Customers
+                    .FirstOrDefaultAsync(c => c.CustomerId == id);
+
+                if (existingCustomer == null)
+                {
+                    this.logger.LogWarning("Customer with ID {CustomerId} not found for update", id);
+                    return null;
+                }
+
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(customer.Name))
+                {
+                    throw new ArgumentException("Customer name is required");
+                }
+
+                if (string.IsNullOrWhiteSpace(customer.Address))
+                {
+                    throw new ArgumentException("Customer address is required");
+                }
+
+                if (string.IsNullOrWhiteSpace(customer.Pincode))
+                {
+                    throw new ArgumentException("Customer pincode is required");
+                }
+
+                if (string.IsNullOrWhiteSpace(customer.State))
+                {
+                    throw new ArgumentException("Customer state is required");
+                }
+
+                if (string.IsNullOrWhiteSpace(customer.City))
+                {
+                    throw new ArgumentException("Customer city is required");
+                }
+
+                // Update properties
+                existingCustomer.Name = customer.Name;
+                existingCustomer.Address = customer.Address;
+                existingCustomer.Pincode = customer.Pincode;
+                existingCustomer.State = customer.State;
+                existingCustomer.City = customer.City;
+
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Updated customer with ID {CustomerId}", id);
+                return existingCustomer;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error updating customer with ID {CustomerId}", id);
+                throw;
+            }
+        }
+
+        public async Task<bool> DeleteCustomerAsync(int id)
+        {
+            try
+            {
+                var customer = await this.context.Customers
+                    .FirstOrDefaultAsync(c => c.CustomerId == id);
+
+                if (customer == null)
+                {
+                    this.logger.LogWarning("Customer with ID {CustomerId} not found for deletion", id);
+                    return false;
+                }
+
+                this.context.Customers.Remove(customer);
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Deleted customer with ID {CustomerId}", id);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error deleting customer with ID {CustomerId}", id);
                 throw;
             }
         }
