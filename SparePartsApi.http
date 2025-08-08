@@ -1,38 +1,108 @@
+### Variables
+@baseUrl = https://localhost:7001
+@token = {{auth_token}}
+
+### Login to get token (run this first)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
 ### Get all spare parts
-GET {{host}}/api/spareparts
+GET {{baseUrl}}/api/spareparts
+Authorization: Bearer {{token}}
 
 ### Get spare part by ID
-GET {{host}}/api/spareparts/1
+GET {{baseUrl}}/api/spareparts/1
+Authorization: Bearer {{token}}
 
 ### Get spare parts by category
-GET {{host}}/api/spareparts/category/Brakes
+GET {{baseUrl}}/api/spareparts/category/Engine
+Authorization: Bearer {{token}}
 
 ### Get spare parts by manufacturer
-GET {{host}}/api/spareparts/manufacturer/Hella
+GET {{baseUrl}}/api/spareparts/manufacturer/Bosch
+Authorization: Bearer {{token}}
 
-### Get spare parts by vehicle make
-GET {{host}}/api/spareparts/make/BMW
+### Get spare parts by make
+GET {{baseUrl}}/api/spareparts/make/Toyota
+Authorization: Bearer {{token}}
 
 ### Get low stock parts (default threshold: 10)
-GET {{host}}/api/spareparts/stock/low
+GET {{baseUrl}}/api/spareparts/low-stock
+Authorization: Bearer {{token}}
 
 ### Get low stock parts with custom threshold
-GET {{host}}/api/spareparts/stock/low?threshold=5
+GET {{baseUrl}}/api/spareparts/low-stock?threshold=5
+Authorization: Bearer {{token}}
 
-### Get all categories
-GET {{host}}/api/spareparts/categories
+### Search spare parts with filters
+GET {{baseUrl}}/api/spareparts/search?category=Engine&manufacturer=Bosch
+Authorization: Bearer {{token}}
 
-### Get all manufacturers
-GET {{host}}/api/spareparts/manufacturers
+### Search spare parts by make only
+GET {{baseUrl}}/api/spareparts/search?make=Honda
+Authorization: Bearer {{token}}
 
-### Get all vehicle makes
-GET {{host}}/api/spareparts/makes
+### Create new spare part
+POST {{baseUrl}}/api/spareparts
+Authorization: Bearer {{token}}
+Content-Type: application/json
 
-### Search with multiple filters
-GET {{host}}/api/spareparts?category=Engine&manufacturer=Denso
+{
+  "partName": "Test Brake Pad",
+  "category": "Brakes",
+  "manufacturer": "Test Manufacturer",
+  "compatibleMake": "Toyota",
+  "compatibleModel": "Camry",
+  "stockQuantity": 25,
+  "price": 89.99,
+  "location": "Warehouse A-15"
+}
 
-### Search by category and make
-GET {{host}}/api/spareparts?category=Brakes&make=BMW
+### Update spare part
+PUT {{baseUrl}}/api/spareparts/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
 
-### Search by manufacturer and make
-GET {{host}}/api/spareparts?manufacturer=Bosch&make=Honda
+{
+  "partId": 1,
+  "partName": "Updated Engine Oil Filter",
+  "category": "Engine",
+  "manufacturer": "Bosch",
+  "compatibleMake": "Toyota",
+  "compatibleModel": "Camry",
+  "stockQuantity": 50,
+  "price": 25.99,
+  "location": "Warehouse B-10"
+}
+
+### Delete spare part (use with caution)
+DELETE {{baseUrl}}/api/spareparts/999
+Authorization: Bearer {{token}}
+
+### Test endpoints without authentication (should return 401)
+GET {{baseUrl}}/api/spareparts
+
+### Test invalid spare part ID
+GET {{baseUrl}}/api/spareparts/99999
+Authorization: Bearer {{token}}
+
+### Test creating spare part with invalid data
+POST {{baseUrl}}/api/spareparts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "partName": "",
+  "category": "",
+  "manufacturer": "",
+  "compatibleMake": "",
+  "compatibleModel": "",
+  "stockQuantity": -1,
+  "price": -10.00,
+  "location": ""
+}

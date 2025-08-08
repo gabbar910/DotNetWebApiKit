@@ -14,6 +14,8 @@ namespace DotNetApiStarterKit.Services
         Task MigrateOrdersFromJsonAsync();
 
         Task MigrateOrderDetailsFromJsonAsync();
+
+        Task MigrateSparePartsFromJsonAsync();
     }
 
     public class DataMigrationService : IDataMigrationService
@@ -330,6 +332,86 @@ namespace DotNetApiStarterKit.Services
             }
         }
 
+        public async Task MigrateSparePartsFromJsonAsync()
+        {
+            try
+            {
+                var jsonFilePath = Path.Combine(this.environment.ContentRootPath, "data", "spareparts_inventory.json");
+
+                if (!File.Exists(jsonFilePath))
+                {
+                    this.logger.LogInformation("No JSON spare parts file found at {FilePath}. Skipping migration.", jsonFilePath);
+                    return;
+                }
+
+                // Check if spare parts already exist in database
+                var existingSparePartsCount = await this.context.SpareParts.CountAsync();
+                if (existingSparePartsCount > 0)
+                {
+                    this.logger.LogInformation("Database already contains {Count} spare parts. Skipping migration.", existingSparePartsCount);
+                    return;
+                }
+
+                this.logger.LogInformation("Starting migration of spare parts from JSON file to SQLite database...");
+
+                var jsonContent = await File.ReadAllTextAsync(jsonFilePath);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+                };
+
+                var jsonSpareParts = JsonSerializer.Deserialize<List<JsonSparePart>>(jsonContent, options);
+
+                if (jsonSpareParts == null || !jsonSpareParts.Any())
+                {
+                    this.logger.LogWarning("No spare parts found in JSON file or file is empty.");
+                    return;
+                }
+
+                var migratedSpareParts = new List<SparePart>();
+
+                foreach (var jsonSparePart in jsonSpareParts)
+                {
+                    var sparePart = new SparePart
+                    {
+                        PartId = jsonSparePart.PartId,
+                        PartName = jsonSparePart.PartName,
+                        Category = jsonSparePart.Category,
+                        Manufacturer = jsonSparePart.Manufacturer,
+                        CompatibleMake = jsonSparePart.CompatibleMake,
+                        CompatibleModel = jsonSparePart.CompatibleModel,
+                        StockQuantity = jsonSparePart.StockQuantity,
+                        Price = jsonSparePart.Price,
+                        Location = jsonSparePart.Location,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                    };
+
+                    migratedSpareParts.Add(sparePart);
+                }
+
+                this.context.SpareParts.AddRange(migratedSpareParts);
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Successfully migrated {Count} spare parts from JSON to SQLite database.", migratedSpareParts.Count);
+
+                // Create backup of JSON file
+                var backupPath = jsonFilePath + ".backup";
+                File.Copy(jsonFilePath, backupPath, true);
+                this.logger.LogInformation("Created backup of JSON file at {BackupPath}", backupPath);
+
+                // Delete original JSON file
+                File.Delete(jsonFilePath);
+                this.logger.LogInformation("Deleted original JSON file at {FilePath}", jsonFilePath);
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error during spare parts data migration from JSON to SQLite");
+                throw;
+            }
+        }
+
         private async Task UpdateOrderTotalAmountsAsync()
         {
             try
@@ -409,6 +491,27 @@ namespace DotNetApiStarterKit.Services
             public decimal Price { get; set; }
 
             public decimal TotalPrice { get; set; }
+        }
+
+        private class JsonSparePart
+        {
+            public int PartId { get; set; }
+
+            public string PartName { get; set; } = string.Empty;
+
+            public string Category { get; set; } = string.Empty;
+
+            public string Manufacturer { get; set; } = string.Empty;
+
+            public string CompatibleMake { get; set; } = string.Empty;
+
+            public string CompatibleModel { get; set; } = string.Empty;
+
+            public int StockQuantity { get; set; }
+
+            public decimal Price { get; set; }
+
+            public string Location { get; set; } = string.Empty;
         }
     }
 }

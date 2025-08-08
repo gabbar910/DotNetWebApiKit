@@ -1,7 +1,8 @@
 namespace DotNetApiStarterKit.Services
 {
-    using System.Text.Json;
+    using DotNetApiStarterKit.Data;
     using DotNetApiStarterKit.Models;
+    using Microsoft.EntityFrameworkCore;
 
     public interface ISparePartsService
     {
@@ -19,147 +20,248 @@ namespace DotNetApiStarterKit.Services
 
         Task<SparePart> CreateSparePartAsync(SparePart sparePart);
 
+        Task<SparePart> UpdateSparePartAsync(SparePart sparePart);
+
+        Task<bool> DeleteSparePartAsync(int id);
+
         Task<IEnumerable<SparePart>> SearchSparePartsAsync(string? category = null, string? manufacturer = null, string? make = null);
     }
 
     public class SparePartsService : ISparePartsService
     {
-        private readonly string dataFilePath;
+        private readonly AppDbContext context;
         private readonly ILogger<SparePartsService> logger;
-        private List<SparePart>? cachedParts;
 
-        public SparePartsService(IWebHostEnvironment environment, ILogger<SparePartsService> logger)
+        public SparePartsService(AppDbContext context, ILogger<SparePartsService> logger)
         {
-            this.dataFilePath = Path.Combine(environment.ContentRootPath, "data", "spareparts_inventory.json");
+            this.context = context;
             this.logger = logger;
         }
 
         public async Task<IEnumerable<SparePart>> GetAllSparePartsAsync()
         {
-            var parts = await this.LoadSparePartsAsync();
-            return parts;
+            try
+            {
+                var parts = await this.context.SpareParts.ToListAsync();
+                this.logger.LogInformation("Retrieved {Count} spare parts from database", parts.Count);
+                return parts;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error retrieving all spare parts from database");
+                throw;
+            }
         }
 
         public async Task<SparePart?> GetSparePartByIdAsync(int id)
         {
-            var parts = await this.LoadSparePartsAsync();
-            return parts.FirstOrDefault(p => p.PartId == id);
+            try
+            {
+                var part = await this.context.SpareParts.FirstOrDefaultAsync(p => p.PartId == id);
+                if (part == null)
+                {
+                    this.logger.LogWarning("Spare part with ID {PartId} not found", id);
+                }
+                return part;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error retrieving spare part with ID {PartId} from database", id);
+                throw;
+            }
         }
 
         public async Task<IEnumerable<SparePart>> GetSparePartsByCategoryAsync(string category)
         {
-            var parts = await this.LoadSparePartsAsync();
-            return parts.Where(p => p.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+            try
+            {
+                var parts = await this.context.SpareParts
+                    .Where(p => p.Category.ToLower() == category.ToLower())
+                    .ToListAsync();
+                this.logger.LogInformation("Retrieved {Count} spare parts for category {Category}", parts.Count, category);
+                return parts;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error retrieving spare parts for category {Category} from database", category);
+                throw;
+            }
         }
 
         public async Task<IEnumerable<SparePart>> GetSparePartsByManufacturerAsync(string manufacturer)
         {
-            var parts = await this.LoadSparePartsAsync();
-            return parts.Where(p => p.Manufacturer.Equals(manufacturer, StringComparison.OrdinalIgnoreCase));
+            try
+            {
+                var parts = await this.context.SpareParts
+                    .Where(p => p.Manufacturer.ToLower() == manufacturer.ToLower())
+                    .ToListAsync();
+                this.logger.LogInformation("Retrieved {Count} spare parts for manufacturer {Manufacturer}", parts.Count, manufacturer);
+                return parts;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error retrieving spare parts for manufacturer {Manufacturer} from database", manufacturer);
+                throw;
+            }
         }
 
         public async Task<IEnumerable<SparePart>> GetSparePartsByMakeAsync(string make)
         {
-            var parts = await this.LoadSparePartsAsync();
-            return parts.Where(p => p.CompatibleMake.Equals(make, StringComparison.OrdinalIgnoreCase));
+            try
+            {
+                var parts = await this.context.SpareParts
+                    .Where(p => p.CompatibleMake.ToLower() == make.ToLower())
+                    .ToListAsync();
+                this.logger.LogInformation("Retrieved {Count} spare parts for make {Make}", parts.Count, make);
+                return parts;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error retrieving spare parts for make {Make} from database", make);
+                throw;
+            }
         }
 
         public async Task<IEnumerable<SparePart>> GetLowStockPartsAsync(int threshold = 10)
         {
-            var parts = await this.LoadSparePartsAsync();
-            return parts.Where(p => p.StockQuantity <= threshold).OrderBy(p => p.StockQuantity);
+            try
+            {
+                var parts = await this.context.SpareParts
+                    .Where(p => p.StockQuantity <= threshold)
+                    .OrderBy(p => p.StockQuantity)
+                    .ToListAsync();
+                this.logger.LogInformation("Retrieved {Count} low stock spare parts with threshold {Threshold}", parts.Count, threshold);
+                return parts;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error retrieving low stock spare parts from database");
+                throw;
+            }
         }
 
         public async Task<IEnumerable<SparePart>> SearchSparePartsAsync(string? category = null, string? manufacturer = null, string? make = null)
         {
-            var parts = await this.LoadSparePartsAsync();
-            var query = parts.AsEnumerable();
-
-            if (!string.IsNullOrEmpty(category))
+            try
             {
-                query = query.Where(p => p.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
-            }
+                var query = this.context.SpareParts.AsQueryable();
 
-            if (!string.IsNullOrEmpty(manufacturer))
+                if (!string.IsNullOrEmpty(category))
+                {
+                    query = query.Where(p => p.Category.ToLower() == category.ToLower());
+                }
+
+                if (!string.IsNullOrEmpty(manufacturer))
+                {
+                    query = query.Where(p => p.Manufacturer.ToLower() == manufacturer.ToLower());
+                }
+
+                if (!string.IsNullOrEmpty(make))
+                {
+                    query = query.Where(p => p.CompatibleMake.ToLower() == make.ToLower());
+                }
+
+                var parts = await query.ToListAsync();
+                this.logger.LogInformation("Search returned {Count} spare parts for category: {Category}, manufacturer: {Manufacturer}, make: {Make}", 
+                    parts.Count, category ?? "any", manufacturer ?? "any", make ?? "any");
+                return parts;
+            }
+            catch (Exception ex)
             {
-                query = query.Where(p => p.Manufacturer.Equals(manufacturer, StringComparison.OrdinalIgnoreCase));
+                this.logger.LogError(ex, "Error searching spare parts in database");
+                throw;
             }
-
-            if (!string.IsNullOrEmpty(make))
-            {
-                query = query.Where(p => p.CompatibleMake.Equals(make, StringComparison.OrdinalIgnoreCase));
-            }
-
-            return query;
         }
 
         public async Task<SparePart> CreateSparePartAsync(SparePart sparePart)
         {
-            var spareparts = await this.LoadSparePartsAsync();
-
-            // Generate new ID
-            var maxId = spareparts.Any() ? spareparts.Max(p => p.PartId) : 0;
-            sparePart.PartId = maxId + 1;
-
-            spareparts.Add(sparePart);
-            await this.SavePartsAsync(spareparts);
-
-            this.logger.LogInformation("Created new spare part with ID {PartId}", sparePart.PartId);
-            return sparePart;
-        }
-
-        private async Task<List<SparePart>> LoadSparePartsAsync()
-        {
-            if (this.cachedParts != null)
-            {
-                return this.cachedParts;
-            }
-
             try
             {
-                if (!File.Exists(this.dataFilePath))
+                // Generate new ID if not provided
+                if (sparePart.PartId <= 0)
                 {
-                    this.logger.LogError("Spare parts data file not found at: {FilePath}", this.dataFilePath);
-                    return new List<SparePart>();
+                    var maxId = await this.context.SpareParts.AnyAsync() 
+                        ? await this.context.SpareParts.MaxAsync(p => p.PartId) 
+                        : 0;
+                    sparePart.PartId = maxId + 1;
                 }
 
-                var jsonContent = await File.ReadAllTextAsync(this.dataFilePath);
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                };
+                sparePart.CreatedAt = DateTime.UtcNow;
+                sparePart.UpdatedAt = DateTime.UtcNow;
 
-                this.cachedParts = JsonSerializer.Deserialize<List<SparePart>>(jsonContent, options) ?? new List<SparePart>();
-                this.logger.LogInformation("Loaded {Count} spare parts from data file", this.cachedParts.Count);
+                this.context.SpareParts.Add(sparePart);
+                await this.context.SaveChangesAsync();
 
-                return this.cachedParts;
+                this.logger.LogInformation("Created new spare part with ID {PartId}", sparePart.PartId);
+                return sparePart;
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error loading spare parts data from file: {FilePath}", this.dataFilePath);
-                return new List<SparePart>();
+                this.logger.LogError(ex, "Error creating spare part in database");
+                throw;
             }
         }
 
-        private async Task SavePartsAsync(List<SparePart> parts)
+        public async Task<SparePart> UpdateSparePartAsync(SparePart sparePart)
         {
             try
             {
-                var options = new JsonSerializerOptions
+                var existingPart = await this.context.SpareParts.FirstOrDefaultAsync(p => p.PartId == sparePart.PartId);
+                if (existingPart == null)
                 {
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                    WriteIndented = true,
-                };
+                    throw new InvalidOperationException($"Spare part with ID {sparePart.PartId} not found");
+                }
 
-                var jsonContent = JsonSerializer.Serialize(parts, options);
-                await File.WriteAllTextAsync(this.dataFilePath, jsonContent);
-                this.cachedParts = parts;
-                this.logger.LogInformation("Saved {Count} parts to data file", parts.Count);
+                // Update properties
+                existingPart.PartName = sparePart.PartName;
+                existingPart.Category = sparePart.Category;
+                existingPart.Manufacturer = sparePart.Manufacturer;
+                existingPart.CompatibleMake = sparePart.CompatibleMake;
+                existingPart.CompatibleModel = sparePart.CompatibleModel;
+                existingPart.StockQuantity = sparePart.StockQuantity;
+                existingPart.Price = sparePart.Price;
+                existingPart.Location = sparePart.Location;
+                existingPart.UpdatedAt = DateTime.UtcNow;
+
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Updated spare part with ID {PartId}", sparePart.PartId);
+                return existingPart;
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error saving parts data to file: {FilePath}", this.dataFilePath);
+                this.logger.LogError(ex, "Error updating spare part with ID {PartId} in database", sparePart.PartId);
+                throw;
+            }
+        }
+
+        public async Task<bool> DeleteSparePartAsync(int id)
+        {
+            try
+            {
+                var part = await this.context.SpareParts.FirstOrDefaultAsync(p => p.PartId == id);
+                if (part == null)
+                {
+                    this.logger.LogWarning("Spare part with ID {PartId} not found for deletion", id);
+                    return false;
+                }
+
+                // Check if part is referenced in any order items
+                var hasOrderItems = await this.context.OrderItems.AnyAsync(oi => oi.PartId == id);
+                if (hasOrderItems)
+                {
+                    throw new InvalidOperationException($"Cannot delete spare part with ID {id} because it is referenced in existing orders");
+                }
+
+                this.context.SpareParts.Remove(part);
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Deleted spare part with ID {PartId}", id);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error deleting spare part with ID {PartId} from database", id);
                 throw;
             }
         }

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetWebAPIKit.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250808044036_AddOrdersSchema")]
-    partial class AddOrdersSchema
+    [Migration("20250808082244_InitialCreateWithSpareParts")]
+    partial class InitialCreateWithSpareParts
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -124,6 +124,67 @@ namespace DotNetWebAPIKit.Migrations
                     b.HasAnnotation("Relational:JsonPropertyName", "orderitems");
                 });
 
+            modelBuilder.Entity("DotNetApiStarterKit.Models.SparePart", b =>
+                {
+                    b.Property<int>("PartId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CompatibleMake")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CompatibleModel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Manufacturer")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PartName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("PartId");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("CompatibleMake");
+
+                    b.HasIndex("Manufacturer");
+
+                    b.HasIndex("StockQuantity");
+
+                    b.ToTable("SpareParts");
+                });
+
             modelBuilder.Entity("DotNetApiStarterKit.Models.UserCredential", b =>
                 {
                     b.Property<int>("UserId")
@@ -186,10 +247,21 @@ namespace DotNetWebAPIKit.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("DotNetApiStarterKit.Models.SparePart", null)
+                        .WithMany("OrderItems")
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Order");
                 });
 
             modelBuilder.Entity("DotNetApiStarterKit.Models.Order", b =>
+                {
+                    b.Navigation("OrderItems");
+                });
+
+            modelBuilder.Entity("DotNetApiStarterKit.Models.SparePart", b =>
                 {
                     b.Navigation("OrderItems");
                 });

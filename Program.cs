@@ -110,15 +110,44 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        // Apply pending migrations
+        // Apply pending migrations (this will create database if it doesn't exist)
         await context.Database.MigrateAsync();
         logger.LogInformation("Database migrations applied successfully");
 
-        // Run data migration from JSON to SQLite
-        await migrationService.MigrateUsersFromJsonAsync();
-        await migrationService.MigrateCustomersFromJsonAsync();
-        await migrationService.MigrateOrdersFromJsonAsync();
-        await migrationService.MigrateOrderDetailsFromJsonAsync();
+        // Check if this is the first run by checking if any users exist
+        var userCount = await context.Users.CountAsync();
+        var customerCount = await context.Customers.CountAsync();
+        var sparePartsCount = await context.SpareParts.CountAsync();
+
+        if (userCount == 0 || customerCount == 0 || sparePartsCount == 0)
+        {
+            logger.LogInformation("Database appears to be empty. Running initial data migration...");
+            
+            // Run data migration from JSON to SQLite only if tables are empty
+            if (userCount == 0)
+            {
+                await migrationService.MigrateUsersFromJsonAsync();
+            }
+            
+            if (customerCount == 0)
+            {
+                await migrationService.MigrateCustomersFromJsonAsync();
+            }
+            
+            if (sparePartsCount == 0)
+            {
+                await migrationService.MigrateSparePartsFromJsonAsync();
+            }
+            
+            await migrationService.MigrateOrdersFromJsonAsync();
+            await migrationService.MigrateOrderDetailsFromJsonAsync();
+            
+            logger.LogInformation("Initial data migration completed");
+        }
+        else
+        {
+            logger.LogInformation($"Database already contains data: {userCount} users, {customerCount} customers, {sparePartsCount} spare parts. Skipping data migration.");
+        }
     }
     catch (Exception ex)
     {
