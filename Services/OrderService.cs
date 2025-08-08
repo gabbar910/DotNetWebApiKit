@@ -1,5 +1,6 @@
-using System.Text.Json;
+using DotNetApiStarterKit.Data;
 using DotNetApiStarterKit.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace DotNetApiStarterKit.Services
 {
@@ -10,24 +11,26 @@ namespace DotNetApiStarterKit.Services
         Task<IEnumerable<Order>> GetAllOrdersAsync();
 
         Task<Order?> GetOrderByIdAsync(int id);
+
+        Task<Order?> UpdateOrderAsync(int id, Order order);
+
+        Task<bool> DeleteOrderAsync(int id);
     }
 
     public class OrderService : IOrderService
     {
-        private readonly string ordersFilePath;
-        private readonly string orderDetailsFilePath;
+        private readonly AppDbContext context;
         private readonly ILogger<OrderService> logger;
         private readonly ICustomerService customerService;
         private readonly ISparePartsService sparePartsService;
 
         public OrderService(
-            IWebHostEnvironment environment,
+            AppDbContext context,
             ILogger<OrderService> logger,
             ICustomerService customerService,
             ISparePartsService sparePartsService)
         {
-            this.ordersFilePath = Path.Combine(environment.ContentRootPath, "data", "orders.json");
-            this.orderDetailsFilePath = Path.Combine(environment.ContentRootPath, "data", "orderdetails.json");
+            this.context = context;
             this.logger = logger;
             this.customerService = customerService;
             this.sparePartsService = sparePartsService;
@@ -35,223 +38,223 @@ namespace DotNetApiStarterKit.Services
 
         public async Task<Order> CreateOrderAsync(Order order)
         {
-            // Validate customer exists
-            var customer = await this.customerService.GetCustomerByIdAsync(order.CustomerId);
-            if (customer == null)
+            using var transaction = await this.context.Database.BeginTransactionAsync();
+            try
             {
-                throw new ArgumentException($"Customer with ID {order.CustomerId} not found");
-            }
-
-            // Validate date format
-            if (!order.IsValidDate())
-            {
-                throw new ArgumentException($"Invalid date format: {order.OrderDate}. Expected format: YYYY-MM-DD");
-            }
-
-            // Validate all part IDs exist
-            foreach (var item in order.OrderItems)
-            {
-                var sparePart = await this.sparePartsService.GetSparePartByIdAsync(item.PartId);
-                if (sparePart == null)
+                // Validate customer exists
+                var customer = await this.customerService.GetCustomerByIdAsync(order.CustomerId);
+                if (customer == null)
                 {
-                    throw new ArgumentException($"Part with ID {item.PartId} not found");
+                    throw new ArgumentException($"Customer with ID {order.CustomerId} not found");
                 }
 
-                // Optional: Check if sufficient stock is available
-                if (sparePart.StockQuantity < item.Quantity)
+                // Validate date format
+                if (!order.IsValidDate())
                 {
-                    throw new InvalidOperationException($"Insufficient stock for part {item.PartId}. Available: {sparePart.StockQuantity}, Requested: {item.Quantity}");
+                    throw new ArgumentException($"Invalid date format: {order.OrderDate}. Expected format: YYYY-MM-DD");
                 }
+
+                // Validate all part IDs exist and check stock
+                foreach (var item in order.OrderItems)
+                {
+                    var sparePart = await this.sparePartsService.GetSparePartByIdAsync(item.PartId);
+                    if (sparePart == null)
+                    {
+                        throw new ArgumentException($"Part with ID {item.PartId} not found");
+                    }
+
+                    // Optional: Check if sufficient stock is available
+                    if (sparePart.StockQuantity < item.Quantity)
+                    {
+                        throw new InvalidOperationException($"Insufficient stock for part {item.PartId}. Available: {sparePart.StockQuantity}, Requested: {item.Quantity}");
+                    }
+                }
+
+                // Generate new order ID if not provided
+                if (order.OrderId == 0)
+                {
+                    var maxOrderId = await this.context.Orders.MaxAsync(o => (int?)o.OrderId) ?? 0;
+                    order.OrderId = maxOrderId + 1;
+                }
+
+                // Calculate total amount
+                order.TotalAmount = order.OrderItems.Sum(item => item.TotalPrice);
+
+                // Set order ID for all order items
+                foreach (var item in order.OrderItems)
+                {
+                    item.OrderId = order.OrderId;
+                }
+
+                // Add order to context
+                this.context.Orders.Add(order);
+                await this.context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                this.logger.LogInformation("Created new order with ID {OrderId} for customer {CustomerId} with total amount {TotalAmount}", 
+                    order.OrderId, order.CustomerId, order.TotalAmount);
+
+                return order;
             }
-
-            // Generate new order ID
-            var existingOrders = await this.LoadOrdersAsync();
-            var maxOrderId = existingOrders.Any() ? existingOrders.Max(o => o.OrderId) : 0;
-            order.OrderId = maxOrderId + 1;
-
-            // Set order ID for all order items
-            foreach (var item in order.OrderItems)
+            catch (Exception ex)
             {
-                item.OrderId = order.OrderId;
+                await transaction.RollbackAsync();
+                this.logger.LogError(ex, "Error creating order for customer {CustomerId}", order.CustomerId);
+                throw;
             }
-
-            // Save order and order details atomically
-            await this.SaveOrderAsync(order);
-
-            this.logger.LogInformation("Created new order with ID {OrderId} for customer {CustomerId}", order.OrderId, order.CustomerId);
-            return order;
         }
 
         public async Task<IEnumerable<Order>> GetAllOrdersAsync()
         {
-            var orders = await this.LoadOrdersAsync();
-            var orderDetails = await this.LoadOrderDetailsAsync();
-
-            // Group order details by order ID and attach to orders
-            var orderDetailsGrouped = orderDetails.GroupBy(od => od.OrderId).ToDictionary(g => g.Key, g => g.ToList());
-
-            foreach (var order in orders)
-            {
-                if (orderDetailsGrouped.TryGetValue(order.OrderId, out var items))
-                {
-                    order.OrderItems = items;
-                }
-            }
-
-            return orders;
-        }
-
-        public async Task<Order?> GetOrderByIdAsync(int id)
-        {
-            var orders = await this.LoadOrdersAsync();
-            var order = orders.FirstOrDefault(o => o.OrderId == id);
-
-            if (order != null)
-            {
-                var orderDetails = await this.LoadOrderDetailsAsync();
-                order.OrderItems = orderDetails.Where(od => od.OrderId == id).ToList();
-            }
-
-            return order;
-        }
-
-        private async Task<List<Order>> LoadOrdersAsync()
-        {
             try
             {
-                if (!File.Exists(this.ordersFilePath))
-                {
-                    this.logger.LogWarning("Orders file not found at: {FilePath}. Creating empty list.", this.ordersFilePath);
-                    return new List<Order>();
-                }
+                var orders = await this.context.Orders
+                    .Include(o => o.Customer)
+                    .Include(o => o.OrderItems)
+                    .OrderByDescending(o => o.OrderDate)
+                    .ToListAsync();
 
-                var jsonContent = await File.ReadAllTextAsync(this.ordersFilePath);
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                };
-
-                var orders = JsonSerializer.Deserialize<List<Order>>(jsonContent, options) ?? new List<Order>();
-                this.logger.LogInformation("Loaded {Count} orders from data file", orders.Count);
-
+                this.logger.LogInformation("Retrieved {Count} orders from database", orders.Count);
                 return orders;
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error loading orders data from file: {FilePath}", this.ordersFilePath);
+                this.logger.LogError(ex, "Error retrieving all orders from database");
                 throw;
             }
         }
 
-        private async Task<List<OrderItem>> LoadOrderDetailsAsync()
+        public async Task<Order?> GetOrderByIdAsync(int id)
         {
             try
             {
-                if (!File.Exists(this.orderDetailsFilePath))
+                var order = await this.context.Orders
+                    .Include(o => o.Customer)
+                    .Include(o => o.OrderItems)
+                    .FirstOrDefaultAsync(o => o.OrderId == id);
+
+                if (order != null)
                 {
-                    this.logger.LogWarning("Order details file not found at: {FilePath}. Creating empty list.", this.orderDetailsFilePath);
-                    return new List<OrderItem>();
+                    this.logger.LogInformation("Retrieved order {OrderId} from database", id);
+                }
+                else
+                {
+                    this.logger.LogWarning("Order with ID {OrderId} not found", id);
                 }
 
-                var jsonContent = await File.ReadAllTextAsync(this.orderDetailsFilePath);
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                };
-
-                var orderDetails = JsonSerializer.Deserialize<List<OrderItem>>(jsonContent, options) ?? new List<OrderItem>();
-                this.logger.LogInformation("Loaded {Count} order details from data file", orderDetails.Count);
-
-                return orderDetails;
+                return order;
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error loading order details data from file: {FilePath}", this.orderDetailsFilePath);
+                this.logger.LogError(ex, "Error retrieving order {OrderId} from database", id);
                 throw;
             }
         }
 
-        private async Task SaveOrderAsync(Order order)
+        public async Task<Order?> UpdateOrderAsync(int id, Order order)
         {
-            const int maxRetries = 3;
-            const int delayMs = 100;
-
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            using var transaction = await this.context.Database.BeginTransactionAsync();
+            try
             {
-                try
+                var existingOrder = await this.context.Orders
+                    .Include(o => o.OrderItems)
+                    .FirstOrDefaultAsync(o => o.OrderId == id);
+
+                if (existingOrder == null)
                 {
-                    // Load existing data
-                    var existingOrders = await this.LoadOrdersAsync();
-                    var existingOrderDetails = await this.LoadOrderDetailsAsync();
-
-                    // Add new order
-                    var orderToSave = new Order
-                    {
-                        OrderId = order.OrderId,
-                        CustomerId = order.CustomerId,
-                        OrderDate = order.OrderDate,
-                    };
-                    existingOrders.Add(orderToSave);
-
-                    // Add new order details
-                    existingOrderDetails.AddRange(order.OrderItems);
-
-                    // Save both files atomically using temporary files
-                    var tempOrdersFile = this.ordersFilePath + ".tmp";
-                    var tempOrderDetailsFile = this.orderDetailsFilePath + ".tmp";
-
-                    var options = new JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                        WriteIndented = true,
-                    };
-
-                    // Write to temporary files
-                    var ordersJson = JsonSerializer.Serialize(existingOrders, options);
-                    var orderDetailsJson = JsonSerializer.Serialize(existingOrderDetails, options);
-
-                    await File.WriteAllTextAsync(tempOrdersFile, ordersJson);
-                    await File.WriteAllTextAsync(tempOrderDetailsFile, orderDetailsJson);
-
-                    // Atomic move to final files
-                    File.Move(tempOrdersFile, this.ordersFilePath, true);
-                    File.Move(tempOrderDetailsFile, this.orderDetailsFilePath, true);
-
-                    this.logger.LogInformation("Successfully saved order {OrderId} with {ItemCount} items", order.OrderId, order.OrderItems.Count);
-                    return;
+                    this.logger.LogWarning("Order with ID {OrderId} not found for update", id);
+                    return null;
                 }
-                catch (IOException ex) when (attempt < maxRetries)
+
+                // Validate customer exists
+                var customer = await this.customerService.GetCustomerByIdAsync(order.CustomerId);
+                if (customer == null)
                 {
-                    this.logger.LogWarning(ex, "File operation failed on attempt {Attempt}/{MaxRetries}. Retrying in {DelayMs}ms", attempt, maxRetries, delayMs);
-                    await Task.Delay(delayMs);
+                    throw new ArgumentException($"Customer with ID {order.CustomerId} not found");
                 }
-                catch (Exception ex)
+
+                // Validate date format
+                if (!order.IsValidDate())
                 {
-                    this.logger.LogError(ex, "Error saving order data on attempt {Attempt}", attempt);
-
-                    // Clean up temporary files if they exist
-                    var tempOrdersFile = this.ordersFilePath + ".tmp";
-                    var tempOrderDetailsFile = this.orderDetailsFilePath + ".tmp";
-
-                    if (File.Exists(tempOrdersFile))
-                    {
-                        File.Delete(tempOrdersFile);
-                    }
-
-                    if (File.Exists(tempOrderDetailsFile))
-                    {
-                        File.Delete(tempOrderDetailsFile);
-                    }
-
-                    if (attempt == maxRetries)
-                    {
-                        throw;
-                    }
-
-                    await Task.Delay(delayMs);
+                    throw new ArgumentException($"Invalid date format: {order.OrderDate}. Expected format: YYYY-MM-DD");
                 }
+
+                // Validate all part IDs exist
+                foreach (var item in order.OrderItems)
+                {
+                    var sparePart = await this.sparePartsService.GetSparePartByIdAsync(item.PartId);
+                    if (sparePart == null)
+                    {
+                        throw new ArgumentException($"Part with ID {item.PartId} not found");
+                    }
+                }
+
+                // Update order properties
+                existingOrder.CustomerId = order.CustomerId;
+                existingOrder.OrderDate = order.OrderDate;
+
+                // Remove existing order items
+                this.context.OrderItems.RemoveRange(existingOrder.OrderItems);
+
+                // Add new order items
+                foreach (var item in order.OrderItems)
+                {
+                    item.OrderId = id;
+                    existingOrder.OrderItems.Add(item);
+                }
+
+                // Calculate total amount
+                existingOrder.TotalAmount = order.OrderItems.Sum(item => item.TotalPrice);
+
+                await this.context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                this.logger.LogInformation("Updated order {OrderId} with {ItemCount} items, total amount {TotalAmount}", 
+                    id, order.OrderItems.Count, existingOrder.TotalAmount);
+
+                return existingOrder;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                this.logger.LogError(ex, "Error updating order {OrderId}", id);
+                throw;
+            }
+        }
+
+        public async Task<bool> DeleteOrderAsync(int id)
+        {
+            using var transaction = await this.context.Database.BeginTransactionAsync();
+            try
+            {
+                var order = await this.context.Orders
+                    .Include(o => o.OrderItems)
+                    .FirstOrDefaultAsync(o => o.OrderId == id);
+
+                if (order == null)
+                {
+                    this.logger.LogWarning("Order with ID {OrderId} not found for deletion", id);
+                    return false;
+                }
+
+                // Remove order items first (cascade delete should handle this, but being explicit)
+                this.context.OrderItems.RemoveRange(order.OrderItems);
+                
+                // Remove order
+                this.context.Orders.Remove(order);
+
+                await this.context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                this.logger.LogInformation("Deleted order {OrderId} and its {ItemCount} items", id, order.OrderItems.Count);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                this.logger.LogError(ex, "Error deleting order {OrderId}", id);
+                throw;
             }
         }
     }

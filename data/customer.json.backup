@@ -158,5 +158,13 @@
     "pincode": "054814",
     "state": "Tamil Nadu",
     "city": "Sikar"
+  },
+  {
+    "customer_id": 21,
+    "name": "Test User",
+    "address": "123 Test St",
+    "pincode": "12345",
+    "state": "Test State",
+    "city": "Test City"
   }
 ]

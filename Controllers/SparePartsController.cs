@@ -2,10 +2,12 @@ namespace DotNetApiStarterKit.Controllers
 {
     using DotNetApiStarterKit.Models;
     using DotNetApiStarterKit.Services;
+    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class SparePartsController : ControllerBase
     {
         private readonly ISparePartsService sparePartsService;
@@ -18,63 +20,45 @@ namespace DotNetApiStarterKit.Controllers
         }
 
         /// <summary>
-        /// Get all spare parts with optional filtering
+        /// Get all spare parts
         /// </summary>
-        /// <param name="category">Filter by category (optional)</param>
-        /// <param name="manufacturer">Filter by manufacturer (optional)</param>
-        /// <param name="make">Filter by compatible make (optional)</param>
-        /// <returns>List of spare parts</returns>
+        /// <returns>List of all spare parts</returns>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<SparePart>>> GetSpareParts(
-            [FromQuery] string? category = null,
-            [FromQuery] string? manufacturer = null,
-            [FromQuery] string? make = null)
+        public async Task<ActionResult<IEnumerable<SparePart>>> GetAllSpareParts()
         {
             try
             {
-                IEnumerable<SparePart> parts;
-
-                if (!string.IsNullOrEmpty(category) || !string.IsNullOrEmpty(manufacturer) || !string.IsNullOrEmpty(make))
-                {
-                    parts = await this.sparePartsService.SearchSparePartsAsync(category, manufacturer, make);
-                }
-                else
-                {
-                    parts = await this.sparePartsService.GetAllSparePartsAsync();
-                }
-
-                return this.Ok(parts);
+                var spareParts = await this.sparePartsService.GetAllSparePartsAsync();
+                return Ok(spareParts);
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error retrieving spare parts");
-                return this.StatusCode(500, "An error occurred while retrieving spare parts");
+                this.logger.LogError(ex, "Error retrieving all spare parts");
+                return StatusCode(500, "Internal server error while retrieving spare parts");
             }
         }
 
         /// <summary>
-        /// Get a specific spare part by ID
+        /// Get spare part by ID
         /// </summary>
-        /// <param name="id">Part ID</param>
+        /// <param name="id">Spare part ID</param>
         /// <returns>Spare part details</returns>
         [HttpGet("{id}")]
-        public async Task<ActionResult<SparePart>> GetSparePart(int id)
+        public async Task<ActionResult<SparePart>> GetSparePartById(int id)
         {
             try
             {
-                var part = await this.sparePartsService.GetSparePartByIdAsync(id);
-
-                if (part == null)
+                var sparePart = await this.sparePartsService.GetSparePartByIdAsync(id);
+                if (sparePart == null)
                 {
-                    return this.NotFound($"Spare part with ID {id} not found");
+                    return NotFound($"Spare part with ID {id} not found");
                 }
-
-                return this.Ok(part);
+                return Ok(sparePart);
             }
             catch (Exception ex)
             {
                 this.logger.LogError(ex, "Error retrieving spare part with ID {PartId}", id);
-                return this.StatusCode(500, "An error occurred while retrieving the spare part");
+                return StatusCode(500, "Internal server error while retrieving spare part");
             }
         }
 
@@ -88,13 +72,13 @@ namespace DotNetApiStarterKit.Controllers
         {
             try
             {
-                var parts = await this.sparePartsService.GetSparePartsByCategoryAsync(category);
-                return this.Ok(parts);
+                var spareParts = await this.sparePartsService.GetSparePartsByCategoryAsync(category);
+                return Ok(spareParts);
             }
             catch (Exception ex)
             {
                 this.logger.LogError(ex, "Error retrieving spare parts for category {Category}", category);
-                return this.StatusCode(500, "An error occurred while retrieving spare parts by category");
+                return StatusCode(500, "Internal server error while retrieving spare parts by category");
             }
         }
 
@@ -108,18 +92,18 @@ namespace DotNetApiStarterKit.Controllers
         {
             try
             {
-                var parts = await this.sparePartsService.GetSparePartsByManufacturerAsync(manufacturer);
-                return this.Ok(parts);
+                var spareParts = await this.sparePartsService.GetSparePartsByManufacturerAsync(manufacturer);
+                return Ok(spareParts);
             }
             catch (Exception ex)
             {
                 this.logger.LogError(ex, "Error retrieving spare parts for manufacturer {Manufacturer}", manufacturer);
-                return this.StatusCode(500, "An error occurred while retrieving spare parts by manufacturer");
+                return StatusCode(500, "Internal server error while retrieving spare parts by manufacturer");
             }
         }
 
         /// <summary>
-        /// Get spare parts by compatible vehicle make
+        /// Get spare parts by compatible make
         /// </summary>
         /// <param name="make">Vehicle make</param>
         /// <returns>List of spare parts compatible with the specified make</returns>
@@ -128,93 +112,148 @@ namespace DotNetApiStarterKit.Controllers
         {
             try
             {
-                var parts = await this.sparePartsService.GetSparePartsByMakeAsync(make);
-                return this.Ok(parts);
+                var spareParts = await this.sparePartsService.GetSparePartsByMakeAsync(make);
+                return Ok(spareParts);
             }
             catch (Exception ex)
             {
                 this.logger.LogError(ex, "Error retrieving spare parts for make {Make}", make);
-                return this.StatusCode(500, "An error occurred while retrieving spare parts by make");
+                return StatusCode(500, "Internal server error while retrieving spare parts by make");
             }
         }
 
         /// <summary>
-        /// Get spare parts with low stock
+        /// Get low stock spare parts
         /// </summary>
         /// <param name="threshold">Stock threshold (default: 10)</param>
         /// <returns>List of spare parts with stock below the threshold</returns>
-        [HttpGet("stock/low")]
+        [HttpGet("low-stock")]
         public async Task<ActionResult<IEnumerable<SparePart>>> GetLowStockParts([FromQuery] int threshold = 10)
         {
             try
             {
-                var parts = await this.sparePartsService.GetLowStockPartsAsync(threshold);
-                return this.Ok(parts);
+                var spareParts = await this.sparePartsService.GetLowStockPartsAsync(threshold);
+                return Ok(spareParts);
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error retrieving low stock parts with threshold {Threshold}", threshold);
-                return this.StatusCode(500, "An error occurred while retrieving low stock parts");
+                this.logger.LogError(ex, "Error retrieving low stock spare parts");
+                return StatusCode(500, "Internal server error while retrieving low stock spare parts");
             }
         }
 
         /// <summary>
-        /// Get available categories
+        /// Search spare parts with optional filters
         /// </summary>
-        /// <returns>List of unique categories</returns>
-        [HttpGet("categories")]
-        public async Task<ActionResult<IEnumerable<string>>> GetCategories()
+        /// <param name="category">Optional category filter</param>
+        /// <param name="manufacturer">Optional manufacturer filter</param>
+        /// <param name="make">Optional make filter</param>
+        /// <returns>List of spare parts matching the search criteria</returns>
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<SparePart>>> SearchSpareParts(
+            [FromQuery] string? category = null,
+            [FromQuery] string? manufacturer = null,
+            [FromQuery] string? make = null)
         {
             try
             {
-                var parts = await this.sparePartsService.GetAllSparePartsAsync();
-                var categories = parts.Select(p => p.Category).Distinct().OrderBy(c => c);
-                return this.Ok(categories);
+                var spareParts = await this.sparePartsService.SearchSparePartsAsync(category, manufacturer, make);
+                return Ok(spareParts);
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error retrieving categories");
-                return this.StatusCode(500, "An error occurred while retrieving categories");
+                this.logger.LogError(ex, "Error searching spare parts");
+                return StatusCode(500, "Internal server error while searching spare parts");
             }
         }
 
         /// <summary>
-        /// Get available manufacturers
+        /// Create a new spare part
         /// </summary>
-        /// <returns>List of unique manufacturers</returns>
-        [HttpGet("manufacturers")]
-        public async Task<ActionResult<IEnumerable<string>>> GetManufacturers()
+        /// <param name="sparePart">Spare part details</param>
+        /// <returns>Created spare part</returns>
+        [HttpPost]
+        public async Task<ActionResult<SparePart>> CreateSparePart([FromBody] SparePart sparePart)
         {
             try
             {
-                var parts = await this.sparePartsService.GetAllSparePartsAsync();
-                var manufacturers = parts.Select(p => p.Manufacturer).Distinct().OrderBy(m => m);
-                return this.Ok(manufacturers);
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var createdSparePart = await this.sparePartsService.CreateSparePartAsync(sparePart);
+                return CreatedAtAction(nameof(GetSparePartById), new { id = createdSparePart.PartId }, createdSparePart);
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error retrieving manufacturers");
-                return this.StatusCode(500, "An error occurred while retrieving manufacturers");
+                this.logger.LogError(ex, "Error creating spare part");
+                return StatusCode(500, "Internal server error while creating spare part");
             }
         }
 
         /// <summary>
-        /// Get available vehicle makes
+        /// Update an existing spare part
         /// </summary>
-        /// <returns>List of unique vehicle makes</returns>
-        [HttpGet("makes")]
-        public async Task<ActionResult<IEnumerable<string>>> GetMakes()
+        /// <param name="id">Spare part ID</param>
+        /// <param name="sparePart">Updated spare part details</param>
+        /// <returns>Updated spare part</returns>
+        [HttpPut("{id}")]
+        public async Task<ActionResult<SparePart>> UpdateSparePart(int id, [FromBody] SparePart sparePart)
         {
             try
             {
-                var parts = await this.sparePartsService.GetAllSparePartsAsync();
-                var makes = parts.Select(p => p.CompatibleMake).Distinct().OrderBy(m => m);
-                return this.Ok(makes);
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                if (id != sparePart.PartId)
+                {
+                    return BadRequest("ID in URL does not match ID in request body");
+                }
+
+                var updatedSparePart = await this.sparePartsService.UpdateSparePartAsync(sparePart);
+                return Ok(updatedSparePart);
+            }
+            catch (InvalidOperationException ex)
+            {
+                this.logger.LogWarning(ex, "Spare part with ID {PartId} not found for update", id);
+                return NotFound(ex.Message);
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error retrieving makes");
-                return this.StatusCode(500, "An error occurred while retrieving makes");
+                this.logger.LogError(ex, "Error updating spare part with ID {PartId}", id);
+                return StatusCode(500, "Internal server error while updating spare part");
+            }
+        }
+
+        /// <summary>
+        /// Delete a spare part
+        /// </summary>
+        /// <param name="id">Spare part ID</param>
+        /// <returns>Success status</returns>
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteSparePart(int id)
+        {
+            try
+            {
+                var deleted = await this.sparePartsService.DeleteSparePartAsync(id);
+                if (!deleted)
+                {
+                    return NotFound($"Spare part with ID {id} not found");
+                }
+                return NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                this.logger.LogWarning(ex, "Cannot delete spare part with ID {PartId}", id);
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error deleting spare part with ID {PartId}", id);
+                return StatusCode(500, "Internal server error while deleting spare part");
             }
         }
     }

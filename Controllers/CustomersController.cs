@@ -2,10 +2,12 @@ namespace DotNetApiStarterKit.Controllers
 {
     using DotNetApiStarterKit.Models;
     using DotNetApiStarterKit.Services;
+    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class CustomersController : ControllerBase
     {
         private readonly ICustomerService customerService;

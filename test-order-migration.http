@@ -1,0 +1,270 @@
+### Test Order Migration - Order API Tests
+### The application should now be using SQLite for orders instead of JSON files
+
+@baseUrl = http://localhost:5189
+
+### Test 1: Get all orders (should return migrated orders with order items)
+GET {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+### Test 2: Get specific order by ID (should return order with items)
+GET {{baseUrl}}/api/orders/1
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+### Test 3: Get another order by ID (should return order with items)
+GET {{baseUrl}}/api/orders/2
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+### Test 4: Create a new order (should work with SQLite)
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 1,
+  "orderDate": "2025-08-08",
+  "orderItems": [
+    {
+      "partId": 100,
+      "quantity": 2,
+      "price": 1500.00,
+      "totalPrice": 3000.00
+    },
+    {
+      "partId": 101,
+      "quantity": 1,
+      "price": 2500.00,
+      "totalPrice": 2500.00
+    }
+  ]
+}
+
+### Test 5: Update an existing order
+PUT {{baseUrl}}/api/orders/1
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 1,
+  "orderDate": "2025-08-08",
+  "orderItems": [
+    {
+      "partId": 165,
+      "quantity": 1,
+      "price": 8049.45,
+      "totalPrice": 8049.45
+    },
+    {
+      "partId": 265,
+      "quantity": 2,
+      "price": 2559.26,
+      "totalPrice": 5118.52
+    }
+  ]
+}
+
+### Test 6: Get the updated order to verify changes
+GET {{baseUrl}}/api/orders/1
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+### Test 7: Create another order to test auto-increment ID
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 2,
+  "orderDate": "2025-08-08",
+  "orderItems": [
+    {
+      "partId": 200,
+      "quantity": 3,
+      "price": 750.00,
+      "totalPrice": 2250.00
+    }
+  ]
+}
+
+### Test 8: Get all orders again (should now include new orders)
+GET {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+### Test 9: Delete an order
+DELETE {{baseUrl}}/api/orders/52
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+### Test 10: Try to get the deleted order (should return 404)
+GET {{baseUrl}}/api/orders/52
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+### Test 11: Test validation - try to create order with missing required fields
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 0,
+  "orderDate": "2025-08-08",
+  "orderItems": []
+}
+
+### Test 12: Test validation - try to create order with invalid customer ID
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 999,
+  "orderDate": "2025-08-08",
+  "orderItems": [
+    {
+      "partId": 100,
+      "quantity": 1,
+      "price": 1000.00,
+      "totalPrice": 1000.00
+    }
+  ]
+}
+
+### Test 13: Test validation - try to create order with invalid part ID
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 1,
+  "orderDate": "2025-08-08",
+  "orderItems": [
+    {
+      "partId": 99999,
+      "quantity": 1,
+      "price": 1000.00,
+      "totalPrice": 1000.00
+    }
+  ]
+}
+
+### Test 14: Test validation - try to create order with invalid date format
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 1,
+  "orderDate": "08/08/2025",
+  "orderItems": [
+    {
+      "partId": 100,
+      "quantity": 1,
+      "price": 1000.00,
+      "totalPrice": 1000.00
+    }
+  ]
+}
+
+### Test 15: Get order with customer details (test relationship)
+GET {{baseUrl}}/api/orders/3
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+### Test 16: Test large order with multiple items
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 3,
+  "orderDate": "2025-08-08",
+  "orderItems": [
+    {
+      "partId": 76,
+      "quantity": 2,
+      "price": 3778.99,
+      "totalPrice": 7557.98
+    },
+    {
+      "partId": 81,
+      "quantity": 1,
+      "price": 8022.52,
+      "totalPrice": 8022.52
+    },
+    {
+      "partId": 13,
+      "quantity": 3,
+      "price": 441.95,
+      "totalPrice": 1325.85
+    },
+    {
+      "partId": 33,
+      "quantity": 1,
+      "price": 4102.84,
+      "totalPrice": 4102.84
+    }
+  ]
+}
+
+### Test 17: Update order with different number of items
+PUT {{baseUrl}}/api/orders/2
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 7,
+  "orderDate": "2025-08-08",
+  "orderItems": [
+    {
+      "partId": 150,
+      "quantity": 1,
+      "price": 5000.00,
+      "totalPrice": 5000.00
+    }
+  ]
+}
+
+### Test 18: Test concurrent access - create multiple orders quickly
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 4,
+  "orderDate": "2025-08-08",
+  "orderItems": [
+    {
+      "partId": 120,
+      "quantity": 1,
+      "price": 1200.00,
+      "totalPrice": 1200.00
+    }
+  ]
+}
+
+### Test 19: Another concurrent order
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}
+
+{
+  "customerId": 5,
+  "orderDate": "2025-08-08",
+  "orderItems": [
+    {
+      "partId": 130,
+      "quantity": 2,
+      "price": 800.00,
+      "totalPrice": 1600.00
+    }
+  ]
+}
+
+### Test 20: Final verification - get all orders to see migration results
+GET {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{$dotenv JWT_TOKEN}}

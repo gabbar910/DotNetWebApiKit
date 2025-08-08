@@ -4,5 +4,28 @@
 echo "🔍 Running dotnet format..."
 dotnet format DotNetWebAPIKit.sln --verify-no-changes || exit 1
 
-echo "✅ Running unit tests..."
-dotnet test --no-build --verbosity minimal || exit 1
+# Run tests from DotNetWebAPIKit.Tests
+echo "✅ Running Unit Tests..."
+cd ../../DotNetWebAPIKit.Tests || exit 1
+# Ensure the directory exists before running tests
+if [ ! -d "DotNetWebAPIKit.Tests" ]; then
+  echo "Directory DotNetWebAPIKit.Tests does not exist."
+  exit 1
+else
+  echo "🔄 Changed directory to DotNetWebAPIKit.Tests."
+    # Ensure we are in the correct directory
+    if [ ! -f "DotNetWebAPIKit.Tests.csproj" ]; then
+      echo "Project file DotNetWebAPIKit.Tests.csproj does not exist in DotNetWebAPIKit.Tests."
+      exit 1
+    else
+      echo "Project file DotNetWebAPIKit.Tests.csproj found, executing test now..."
+      dotnet test --no-build --verbosity minimal || exit 1
+      echo "✅ All checks passed successfully!"
+      # Return to the original directory
+      echo "🔄 Returning to the original directory..."
+      cd - || exit 1
+    fi    
+fi
+
+# Add any additional commands you want to run after tests
+echo "✅ Pre-commit checks completed successfully!"
