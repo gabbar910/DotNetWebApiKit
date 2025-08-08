@@ -18,6 +18,8 @@ namespace DotNetApiStarterKit.Data
 
         public DbSet<OrderItem> OrderItems { get; set; }
 
+        public DbSet<SparePart> SpareParts { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -126,6 +128,57 @@ namespace DotNetApiStarterKit.Data
                 // Add indexes for better query performance
                 entity.HasIndex(e => e.OrderId);
                 entity.HasIndex(e => e.PartId);
+            });
+
+            // Configure SparePart entity
+            modelBuilder.Entity<SparePart>(entity =>
+            {
+                entity.HasKey(e => e.PartId);
+                
+                entity.Property(e => e.PartName)
+                    .IsRequired()
+                    .HasMaxLength(100);
+                
+                entity.Property(e => e.Category)
+                    .IsRequired()
+                    .HasMaxLength(50);
+                
+                entity.Property(e => e.Manufacturer)
+                    .IsRequired()
+                    .HasMaxLength(100);
+                
+                entity.Property(e => e.CompatibleMake)
+                    .IsRequired()
+                    .HasMaxLength(50);
+                
+                entity.Property(e => e.CompatibleModel)
+                    .IsRequired()
+                    .HasMaxLength(100);
+                
+                entity.Property(e => e.Price)
+                    .IsRequired()
+                    .HasPrecision(18, 2);
+                
+                entity.Property(e => e.Location)
+                    .HasMaxLength(100);
+                
+                entity.Property(e => e.CreatedAt)
+                    .IsRequired();
+                
+                entity.Property(e => e.UpdatedAt)
+                    .IsRequired();
+
+                // Configure relationship with OrderItems
+                entity.HasMany(e => e.OrderItems)
+                    .WithOne()
+                    .HasForeignKey(e => e.PartId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Add indexes for better query performance
+                entity.HasIndex(e => e.Category);
+                entity.HasIndex(e => e.Manufacturer);
+                entity.HasIndex(e => e.CompatibleMake);
+                entity.HasIndex(e => e.StockQuantity);
             });
         }
     }
