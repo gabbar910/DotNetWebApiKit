@@ -14,6 +14,10 @@ namespace DotNetApiStarterKit.Data
 
         public DbSet<Customer> Customers { get; set; }
 
+        public DbSet<Order> Orders { get; set; }
+
+        public DbSet<OrderItem> OrderItems { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -69,6 +73,59 @@ namespace DotNetApiStarterKit.Data
                 entity.Property(e => e.City)
                     .IsRequired()
                     .HasMaxLength(50);
+            });
+
+            // Configure Order entity
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasKey(e => e.OrderId);
+                
+                entity.Property(e => e.OrderDate)
+                    .IsRequired();
+                
+                entity.Property(e => e.TotalAmount)
+                    .HasPrecision(18, 2)
+                    .HasDefaultValue(0);
+
+                // Configure relationship with Customer
+                entity.HasOne(e => e.Customer)
+                    .WithMany()
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Configure relationship with OrderItems
+                entity.HasMany(e => e.OrderItems)
+                    .WithOne(e => e.Order)
+                    .HasForeignKey(e => e.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Add index for better query performance
+                entity.HasIndex(e => e.CustomerId);
+                entity.HasIndex(e => e.OrderDate);
+            });
+
+            // Configure OrderItem entity
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.HasKey(e => e.ItemId);
+                
+                entity.Property(e => e.Price)
+                    .IsRequired()
+                    .HasPrecision(18, 2);
+                
+                entity.Property(e => e.TotalPrice)
+                    .IsRequired()
+                    .HasPrecision(18, 2);
+
+                entity.Property(e => e.Quantity)
+                    .IsRequired();
+
+                entity.Property(e => e.PartId)
+                    .IsRequired();
+
+                // Add indexes for better query performance
+                entity.HasIndex(e => e.OrderId);
+                entity.HasIndex(e => e.PartId);
             });
         }
     }

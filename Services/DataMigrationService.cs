@@ -10,6 +10,10 @@ namespace DotNetApiStarterKit.Services
         Task MigrateUsersFromJsonAsync();
 
         Task MigrateCustomersFromJsonAsync();
+
+        Task MigrateOrdersFromJsonAsync();
+
+        Task MigrateOrderDetailsFromJsonAsync();
     }
 
     public class DataMigrationService : IDataMigrationService
@@ -175,6 +179,181 @@ namespace DotNetApiStarterKit.Services
             }
         }
 
+        public async Task MigrateOrdersFromJsonAsync()
+        {
+            try
+            {
+                var jsonFilePath = Path.Combine(this.environment.ContentRootPath, "data", "orders.json");
+
+                if (!File.Exists(jsonFilePath))
+                {
+                    this.logger.LogInformation("No JSON orders file found at {FilePath}. Skipping migration.", jsonFilePath);
+                    return;
+                }
+
+                // Check if orders already exist in database
+                var existingOrdersCount = await this.context.Orders.CountAsync();
+                if (existingOrdersCount > 0)
+                {
+                    this.logger.LogInformation("Database already contains {Count} orders. Skipping migration.", existingOrdersCount);
+                    return;
+                }
+
+                this.logger.LogInformation("Starting migration of orders from JSON file to SQLite database...");
+
+                var jsonContent = await File.ReadAllTextAsync(jsonFilePath);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+                };
+
+                var jsonOrders = JsonSerializer.Deserialize<List<JsonOrder>>(jsonContent, options);
+
+                if (jsonOrders == null || !jsonOrders.Any())
+                {
+                    this.logger.LogWarning("No orders found in JSON file or file is empty.");
+                    return;
+                }
+
+                var migratedOrders = new List<Order>();
+
+                foreach (var jsonOrder in jsonOrders)
+                {
+                    var order = new Order
+                    {
+                        OrderId = jsonOrder.OrderId,
+                        CustomerId = jsonOrder.CustomerId,
+                        OrderDate = DateTime.ParseExact(jsonOrder.OrderDate, "yyyy-MM-dd", null),
+                        TotalAmount = 0, // Will be calculated after order items are migrated
+                        OrderItems = new List<OrderItem>(), // Will be populated by order details migration
+                    };
+
+                    migratedOrders.Add(order);
+                }
+
+                this.context.Orders.AddRange(migratedOrders);
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Successfully migrated {Count} orders from JSON to SQLite database.", migratedOrders.Count);
+
+                // Create backup of JSON file
+                var backupPath = jsonFilePath + ".backup";
+                File.Copy(jsonFilePath, backupPath, true);
+                this.logger.LogInformation("Created backup of JSON file at {BackupPath}", backupPath);
+
+                // Delete original JSON file
+                File.Delete(jsonFilePath);
+                this.logger.LogInformation("Deleted original JSON file at {FilePath}", jsonFilePath);
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error during order data migration from JSON to SQLite");
+                throw;
+            }
+        }
+
+        public async Task MigrateOrderDetailsFromJsonAsync()
+        {
+            try
+            {
+                var jsonFilePath = Path.Combine(this.environment.ContentRootPath, "data", "orderdetails.json");
+
+                if (!File.Exists(jsonFilePath))
+                {
+                    this.logger.LogInformation("No JSON order details file found at {FilePath}. Skipping migration.", jsonFilePath);
+                    return;
+                }
+
+                // Check if order items already exist in database
+                var existingOrderItemsCount = await this.context.OrderItems.CountAsync();
+                if (existingOrderItemsCount > 0)
+                {
+                    this.logger.LogInformation("Database already contains {Count} order items. Skipping migration.", existingOrderItemsCount);
+                    return;
+                }
+
+                this.logger.LogInformation("Starting migration of order details from JSON file to SQLite database...");
+
+                var jsonContent = await File.ReadAllTextAsync(jsonFilePath);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+                };
+
+                var jsonOrderItems = JsonSerializer.Deserialize<List<JsonOrderItem>>(jsonContent, options);
+
+                if (jsonOrderItems == null || !jsonOrderItems.Any())
+                {
+                    this.logger.LogWarning("No order details found in JSON file or file is empty.");
+                    return;
+                }
+
+                var migratedOrderItems = new List<OrderItem>();
+
+                foreach (var jsonOrderItem in jsonOrderItems)
+                {
+                    var orderItem = new OrderItem
+                    {
+                        OrderId = jsonOrderItem.OrderId,
+                        PartId = jsonOrderItem.PartId,
+                        Quantity = jsonOrderItem.Quantity,
+                        Price = jsonOrderItem.Price,
+                        TotalPrice = jsonOrderItem.TotalPrice,
+                    };
+
+                    migratedOrderItems.Add(orderItem);
+                }
+
+                this.context.OrderItems.AddRange(migratedOrderItems);
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Successfully migrated {Count} order items from JSON to SQLite database.", migratedOrderItems.Count);
+
+                // Update order total amounts
+                await this.UpdateOrderTotalAmountsAsync();
+
+                // Create backup of JSON file
+                var backupPath = jsonFilePath + ".backup";
+                File.Copy(jsonFilePath, backupPath, true);
+                this.logger.LogInformation("Created backup of JSON file at {BackupPath}", backupPath);
+
+                // Delete original JSON file
+                File.Delete(jsonFilePath);
+                this.logger.LogInformation("Deleted original JSON file at {FilePath}", jsonFilePath);
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error during order details data migration from JSON to SQLite");
+                throw;
+            }
+        }
+
+        private async Task UpdateOrderTotalAmountsAsync()
+        {
+            try
+            {
+                this.logger.LogInformation("Updating order total amounts...");
+
+                var orders = await this.context.Orders.Include(o => o.OrderItems).ToListAsync();
+
+                foreach (var order in orders)
+                {
+                    order.TotalAmount = order.OrderItems.Sum(item => item.TotalPrice);
+                }
+
+                await this.context.SaveChangesAsync();
+
+                this.logger.LogInformation("Successfully updated total amounts for {Count} orders.", orders.Count);
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error updating order total amounts");
+                throw;
+            }
+        }
+
         // Helper classes for JSON deserialization
         private class JsonUserCredential
         {
@@ -206,6 +385,30 @@ namespace DotNetApiStarterKit.Services
             public string State { get; set; } = string.Empty;
 
             public string City { get; set; } = string.Empty;
+        }
+
+        private class JsonOrder
+        {
+            public int OrderId { get; set; }
+
+            public int CustomerId { get; set; }
+
+            public string OrderDate { get; set; } = string.Empty;
+
+            public List<JsonOrderItem> OrderItems { get; set; } = new List<JsonOrderItem>();
+        }
+
+        private class JsonOrderItem
+        {
+            public int OrderId { get; set; }
+
+            public int PartId { get; set; }
+
+            public int Quantity { get; set; }
+
+            public decimal Price { get; set; }
+
+            public decimal TotalPrice { get; set; }
         }
     }
 }

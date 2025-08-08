@@ -117,6 +117,8 @@ using (var scope = app.Services.CreateScope())
         // Run data migration from JSON to SQLite
         await migrationService.MigrateUsersFromJsonAsync();
         await migrationService.MigrateCustomersFromJsonAsync();
+        await migrationService.MigrateOrdersFromJsonAsync();
+        await migrationService.MigrateOrderDetailsFromJsonAsync();
     }
     catch (Exception ex)
     {

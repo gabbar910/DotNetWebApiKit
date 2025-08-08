@@ -1,32 +1,38 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 
 namespace DotNetApiStarterKit.Models
 {
     public class Order
     {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)] // Preserve original IDs during migration
         [JsonPropertyName("order_id")]
         public int OrderId { get; set; }
 
-        [JsonPropertyName("customer_id")]
         [Required(ErrorMessage = "Customer ID is required")]
         [Range(1, int.MaxValue, ErrorMessage = "Customer ID must be a positive number")]
+        [JsonPropertyName("customer_id")]
         public int CustomerId { get; set; }
 
-        [JsonPropertyName("order_date")]
+        [ForeignKey("CustomerId")]
+        public Customer? Customer { get; set; }
+
         [Required(ErrorMessage = "Order date is required")]
-        [RegularExpression(@"^\d{4}-\d{2}-\d{2}$", ErrorMessage = "Order date must be in YYYY-MM-DD format")]
-        public string OrderDate { get; set; } = string.Empty;
+        [JsonPropertyName("order_date")]
+        public DateTime OrderDate { get; set; }
+
+        [Precision(18, 2)]
+        public decimal TotalAmount { get; set; }
 
         [JsonPropertyName("orderitems")]
-        [Required(ErrorMessage = "Order items are required")]
-        [MinLength(1, ErrorMessage = "At least one order item is required")]
         public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
         public bool IsValidDate()
         {
-            return DateTime.TryParseExact(this.OrderDate, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out _);
+            return DateTime.TryParseExact(this.OrderDate.ToString("yyyy-MM-dd"), "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out _);
         }
     }
 }

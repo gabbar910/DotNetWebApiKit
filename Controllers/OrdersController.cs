@@ -212,5 +212,147 @@ namespace DotNetApiStarterKit.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Updates an existing order
+        /// </summary>
+        /// <param name="id">Order ID</param>
+        /// <param name="order">Updated order details</param>
+        /// <returns>Updated order</returns>
+        /// <response code="200">Order updated successfully</response>
+        /// <response code="400">Invalid request data</response>
+        /// <response code="404">Order not found</response>
+        /// <response code="500">Internal server error</response>
+        [HttpPut("{id}")]
+        [ProducesResponseType(typeof(Order), 200)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 404)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<ActionResult<Order>> UpdateOrder(int id, [FromBody] Order order)
+        {
+            try
+            {
+                this.logger.LogInformation("Updating order {OrderId}", id);
+
+                if (id <= 0)
+                {
+                    return this.BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Order ID",
+                        Detail = "Order ID must be a positive number",
+                        Status = 400,
+                    });
+                }
+
+                // Validate model state
+                if (!this.ModelState.IsValid)
+                {
+                    this.logger.LogWarning("Invalid model state for order update: {Errors}",
+                        string.Join(", ", this.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
+                    return this.BadRequest(this.ModelState);
+                }
+
+                // Additional validation for order items
+                if (order.OrderItems == null || !order.OrderItems.Any())
+                {
+                    this.ModelState.AddModelError("OrderItems", "At least one order item is required");
+                    return this.BadRequest(this.ModelState);
+                }
+
+                var updatedOrder = await this.orderService.UpdateOrderAsync(id, order);
+
+                if (updatedOrder == null)
+                {
+                    this.logger.LogWarning("Order with ID {OrderId} not found for update", id);
+                    return this.NotFound(new ProblemDetails
+                    {
+                        Title = "Order Not Found",
+                        Detail = $"Order with ID {id} was not found",
+                        Status = 404,
+                    });
+                }
+
+                this.logger.LogInformation("Successfully updated order {OrderId}", id);
+                return this.Ok(updatedOrder);
+            }
+            catch (ArgumentException ex)
+            {
+                this.logger.LogWarning(ex, "Validation error while updating order {OrderId}: {Message}", id, ex.Message);
+                return this.BadRequest(new ProblemDetails
+                {
+                    Title = "Validation Error",
+                    Detail = ex.Message,
+                    Status = 400,
+                });
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error updating order {OrderId}", id);
+                return this.StatusCode(500, new ProblemDetails
+                {
+                    Title = "Internal Server Error",
+                    Detail = "An unexpected error occurred while updating the order",
+                    Status = 500,
+                });
+            }
+        }
+
+        /// <summary>
+        /// Deletes an order and its order items
+        /// </summary>
+        /// <param name="id">Order ID</param>
+        /// <returns>No content if successful</returns>
+        /// <response code="204">Order deleted successfully</response>
+        /// <response code="400">Invalid Order ID</response>
+        /// <response code="404">Order not found</response>
+        /// <response code="500">Internal server error</response>
+        [HttpDelete("{id}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(typeof(ProblemDetails), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 404)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<ActionResult> DeleteOrder(int id)
+        {
+            try
+            {
+                this.logger.LogInformation("Deleting order {OrderId}", id);
+
+                if (id <= 0)
+                {
+                    return this.BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Order ID",
+                        Detail = "Order ID must be a positive number",
+                        Status = 400,
+                    });
+                }
+
+                var deleted = await this.orderService.DeleteOrderAsync(id);
+
+                if (!deleted)
+                {
+                    this.logger.LogWarning("Order with ID {OrderId} not found for deletion", id);
+                    return this.NotFound(new ProblemDetails
+                    {
+                        Title = "Order Not Found",
+                        Detail = $"Order with ID {id} was not found",
+                        Status = 404,
+                    });
+                }
+
+                this.logger.LogInformation("Successfully deleted order {OrderId}", id);
+                return this.NoContent();
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Error deleting order {OrderId}", id);
+                return this.StatusCode(500, new ProblemDetails
+                {
+                    Title = "Internal Server Error",
+                    Detail = "An unexpected error occurred while deleting the order",
+                    Status = 500,
+                });
+            }
+        }
     }
 }
