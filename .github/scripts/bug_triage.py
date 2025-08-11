@@ -131,7 +131,7 @@ if __name__ == "__main__":
         confidence = float(triage.get("confidence", 0.5))
         summary = triage.get("summary", (details or "")[:140])
         
-        comment = f" **AI Triage Suggestion**\n\n{triage["summary"]}\n\n*(Automated via GitHub Actions)*"
+        comment = f" **AI Triage Suggestion**\n\n{summary}\n\n*(Automated via GitHub Actions)*"
         post_comment(issue_num, comment)
         add_labels(issue_num, [
             {issue_type.lower()},
