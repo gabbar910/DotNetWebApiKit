@@ -6,6 +6,10 @@ on:
   schedule:
     - cron: "0 6 * * *" # daily at 6 AM UTC
 
+permissions:
+  issues: write  # ✅ allow commenting
+  contents: read # ✅ allow reading repository contents
+
 jobs:
   ai-triage:
     runs-on: ubuntu-latest
@@ -25,7 +29,7 @@ jobs:
 
       - name: Run AI Bug Triage
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
