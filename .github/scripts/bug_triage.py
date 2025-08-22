@@ -2,18 +2,17 @@ import os
 import re
 import requests
 import json
-from openai import OpenAI
 from typing import List
 
 # --- Environment variables ---
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+SAIA_API_KEY = os.getenv("GEAI_API_KEY")
 REPO = os.getenv("GITHUB_REPO")
 EVENT_NAME = os.getenv("EVENT_NAME")
 ISSUE_NUMBER = os.getenv("ISSUE_NUMBER")
 
-# --- OpenAI client ---
-client = OpenAI(api_key=OPENAI_API_KEY)
+# --- SAIA API configuration ---
+SAIA_API_URL = "https://saiapi.corp.globant.com/chat"
 
 def get_issues():
     """Fetch issues to triage."""
@@ -39,36 +38,56 @@ def fetch_issue_details(issue_number):
     return response.json()
 
 def ai_triage(issue) -> dict:
-    prompt = f"""
-You are an expert bug triage assistant for a software project.
-
-Your task:
-Analyze the GitHub issue below and return ONLY a valid JSON object.
-Do not include explanations, comments, markdown, or text outside of the JSON.
-The JSON must follow this structure exactly:
-
-{{
-  "issue_type": "Bug | Feature | Question | Documentation",
-  "priority": "Critical | High | Medium | Low",
-  "severity": "Blocker | Major | Minor",
-  "assignee": "GitHub username or empty string",
-  "confidence": 0.0 to 1.0,
-  "summary": "One-line summary (max 140 characters)"
-}}
-
----
-Title: {issue.get('title', '')}
-Body: {issue.get('body', '')}
----
-"""
-
-    resp = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
-
-    txt = resp.choices[0].message.content.strip()
+    # Prepare content with just title and body
+    content = f"Title: {issue.get('title', '')}\nBody: {issue.get('body', '')}"
+    
+    # SAIA API headers
+    headers = {
+        "Authorization": f"Bearer {SAIA_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    # SAIA API payload
+    payload = {
+        "model": "saia:assistant:Product-Roadmap-Assistant",
+        "messages": [{
+            "role": "user",
+            "content": content
+        }],
+        "stream": False
+    }
+    
+    # Make request to SAIA API with error handling
+    try:
+        response = requests.post(SAIA_API_URL, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        # Extract response content
+        response_data = response.json()
+        txt = response_data['choices'][0]['message']['content'].strip()
+        
+    except requests.exceptions.RequestException as e:
+        print(f"SAIA API Error: {e}")
+        # Return defaults on API failure
+        return {
+            "issue_type": "Bug",
+            "priority": "Medium",
+            "severity": "Minor",
+            "assignee": "",
+            "confidence": 0.5,
+            "summary": (issue.get('title') or "")[:140]
+        }
+    except (KeyError, IndexError) as e:
+        print(f"SAIA API Response parsing error: {e}")
+        # Return defaults on response parsing failure
+        return {
+            "issue_type": "Bug",
+            "priority": "Medium",
+            "severity": "Minor",
+            "assignee": "",
+            "confidence": 0.5,
+            "summary": (issue.get('title') or "")[:140]
+        }
     parsed = {}
 
     # Try direct JSON parse
@@ -85,20 +104,49 @@ Body: {issue.get('body', '')}
         else:
             parsed = {}
 
-    # Apply defaults if missing
+    # Apply defaults if missing and map SAIA response format to expected format
     defaults = {
         "issue_type": "Bug",
-        "priority": "Medium",
+        "priority": "Medium", 
         "severity": "Minor",
         "assignee": "",
         "confidence": 0.5,
         "summary": (issue.get('title') or "")[:140]
     }
-    for key, val in defaults.items():
-        if key not in parsed or parsed[key] in (None, ""):
-            parsed[key] = val
+    
+    # Map SAIA API response format to expected format
+    mapped_response = {}
+    
+    # Map issuetype to issue_type
+    mapped_response["issue_type"] = parsed.get("issuetype", defaults["issue_type"])
+    
+    # Map priority (P0->Critical, P1->High, P2->Medium, P3->Low)
+    priority_mapping = {
+        "P0": "Critical",
+        "P1": "High", 
+        "P2": "Medium",
+        "P3": "Low"
+    }
+    saia_priority = parsed.get("priority", "P2")
+    mapped_response["priority"] = priority_mapping.get(saia_priority, defaults["priority"])
+    
+    # Map severity (keep as is)
+    mapped_response["severity"] = parsed.get("severity", defaults["severity"])
+    
+    # Map confidence
+    mapped_response["confidence"] = parsed.get("confidence", defaults["confidence"])
+    
+    # Map summary
+    mapped_response["summary"] = parsed.get("summary", defaults["summary"])[:140]
+    
+    # Keep assignee as empty (not provided by SAIA API)
+    mapped_response["assignee"] = defaults["assignee"]
+    
+    # Store additional SAIA fields for potential future use
+    mapped_response["labels"] = parsed.get("labels", [])
+    mapped_response["steps"] = parsed.get("steps", [])
 
-    return parsed
+    return mapped_response
 
 HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}",
