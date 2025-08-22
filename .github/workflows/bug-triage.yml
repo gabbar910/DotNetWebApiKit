@@ -25,12 +25,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests openai
+          pip install requests
 
       - name: Run AI Bug Triage
         env:
           GITHUB_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SAIA_API_KEY: ${{ secrets.GEAI_API_KEY }}
           GITHUB_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
           EVENT_NAME: ${{ github.event_name }}
